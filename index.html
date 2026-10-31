@@ -817,7 +817,9 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_ZWLGkmQeAYgdUWoOOArAVw_2qA7xjSM";
 const DEFAULT_SUPABASE_URL="https://vgbsthdvohazsfpgugmu.supabase.co";
 const safeGet=k=>{try{return localStorage.getItem(k)||"";}catch(_){return "";}};
 const safeSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){/* storage blocked; current session remains usable */}};
-let base=safeGet("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=safeGet("tonkas_admin_token"), latest=null, busy=false;
+const safeGetSession=k=>{try{return sessionStorage.getItem(k)||"";}catch(_){return "";}};
+const safeSetSession=(k,v)=>{try{if(v)sessionStorage.setItem(k,v);else sessionStorage.removeItem(k);}catch(_){/* session storage may be disabled */}};
+let base=safeGet("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=safeGetSession("tonkas_admin_token")||safeGet("tonkas_admin_token"), latest=null, busy=false;
 if(/onrender\\.com$/i.test(base))base=DEFAULT_SUPABASE_URL;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function setState(state,label){trigger.dataset.state=state;const el=$("hql-label");if(el)el.textContent=label;}
@@ -827,12 +829,12 @@ trigger.setAttribute("aria-controls","hq-live-panel");trigger.setAttribute("aria
 trigger.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();panel.classList.contains("open")?closePanel():openPanel();});
 $("hql-url").value=base;$("hql-token").value=token;
 $("hql-close").addEventListener("click",closePanel);
-$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSet("tonkas_admin_token",token);refresh();});
+$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSetSession("tonkas_admin_token",token);refresh();});
 async function api(path,opts){
  if(!base)throw new Error("Add your Supabase project URL in Settings first.");
  const input=opts&&opts.body?JSON.parse(opts.body):{};
  const action=path.endsWith("/snapshot")?"snapshot":"command";
- const headers={"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY};
+ const headers={"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY};
  if(token)headers["x-hq-admin-token"]=token;
  const payload=action==="snapshot"?{action:"snapshot"}:{action:"command",command:input};
  const r=await fetch(base.replace(/\/+$/,"")+"/functions/v1/tonkas-hq",{method:"POST",headers,body:JSON.stringify(payload)});
@@ -859,7 +861,7 @@ function render(s){
  html+='<div class="hql-card"><div class="hql-section">COMPANY GOAL</div><textarea id="hql-goal" class="hql-input" rows="3">'+esc(s.company_goal||"")+'</textarea><button class="hql-btn" data-action="goal.save">UPDATE GOAL</button></div>';
  html+='<div class="hql-card"><div class="hql-section">MESSAGE MATT</div><textarea id="hql-message" class="hql-input" rows="2" placeholder="Give Matt a goal or ask for a status update..."></textarea><button class="hql-btn" data-action="message.send">SEND TO MATT</button></div>';
  html+='<div><div class="hql-section">AGENT ROSTER · '+(s.agents||[]).length+'</div><div class="hql-list">';
- (s.agents||[]).forEach(a=>{html+='<div class="hql-agent"><div><b>'+esc(a.name)+'</b><br><small>'+esc(a.role)+' · '+esc(a.department)+'</small></div><span class="hql-tag">'+esc(a.status)+'</span><small style="grid-column:1/-1">'+esc(a.current_task||a.objective||"Standing by")+'</small></div>';});
+ (s.agents||[]).forEach(a=>{const task=(s.tasks||[]).find(t=>String(t.id)===String(a.current_task));html+='<div class="hql-agent"><div><b>'+esc(a.name)+'</b><br><small>'+esc(a.role)+' · '+esc(a.department)+'</small></div><span class="hql-tag">'+esc(a.status)+'</span><small style="grid-column:1/-1">'+esc(task?.title||a.objective||"Standing by")+'</small></div>';});
  html+='</div></div>';
  html+='<div><div class="hql-section">OWNER DECISIONS · '+waiting+'</div>';
  if(waiting===0)html+='<div class="hql-status hql-muted">No pending decisions.</div>';
@@ -876,7 +878,7 @@ function render(s){
  html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
  (s.activity||[]).slice(-18).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
  html+='</div></div>';
- html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Use the current tonkas_admin_token from Supabase Vault here. Never put the Gemini API key in this field or in chat. Provider keys belong in Supabase Function Secrets.</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Paste the current tonkas_admin_token from Supabase Vault. This token is saved only for this browser session. Never put the Gemini API key in this field or in chat; provider keys belong in Supabase Function Secrets.</div></div>';
  html+='<div id="hql-error" class="hql-error"></div>';
  $("hql-body").innerHTML=html;
 }
