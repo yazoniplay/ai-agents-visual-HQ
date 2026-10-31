@@ -88,8 +88,8 @@ def approval(title,context,recommended,options,actor):
  aid=str(uuid.uuid4())
  with db() as c: c.execute("INSERT INTO approvals VALUES(?,?,?,?,?,'pending',NULL,?,?,NULL)",(aid,title[:180],context[:10000],recommended,json.dumps(options),actor,stamp()))
  log("approval.created",actor,"Decision needed: "+title,{"approval_id":aid})
-async def llm(system,prompt):
- provider=os.getenv("HQ_DEFAULT_PROVIDER","openai").lower()
+async def llm(system,prompt,provider=None):
+ provider=(provider or os.getenv("HQ_DEFAULT_PROVIDER","openai")).lower()
  async with httpx.AsyncClient(timeout=75) as client:
   if provider=="openai":
    key=os.getenv("OPENAI_API_KEY")
@@ -147,7 +147,7 @@ async def run_tasks():
   log("task.started",spec[1],"Started: "+task["title"],{"task_id":task["id"]})
   try:
    system=f"You are {spec[1]}, {spec[2]}. Scope: {spec[4]}. Complete the internal task as a real written deliverable. No internet, shell, files, or external accounts are available. Never claim to have published, purchased, contacted anyone, or changed an account. If an external action is needed, prepare it for approval. Return JSON only: {{\"result\":\"deliverable or precise blocker\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\"}}."
-   result=parse_json(await llm(system,json.dumps({"task":task["title"],"instructions":task["description"],"goal":get_setting("company_goal")})))
+   provider_map=json.loads(os.getenv("HQ_AGENT_PROVIDER_MAP","{}"))\n   provider=provider_map.get(aid,os.getenv("HQ_DEFAULT_PROVIDER","openai"))\n   result=parse_json(await llm(system,json.dumps({"task":task["title"],"instructions":task["description"],"goal":get_setting("company_goal")}),provider))
    status=result.get("status","completed")
    if status not in ("completed","blocked","needs_review"): status="completed"
    with db() as c:
