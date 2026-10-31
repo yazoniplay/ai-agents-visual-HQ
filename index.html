@@ -800,7 +800,7 @@ trigger.setAttribute("aria-controls","hq-live-panel");trigger.setAttribute("aria
 trigger.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();panel.classList.contains("open")?closePanel():openPanel();});
 $("hql-url").value=base;$("hql-token").value=token;
 $("hql-close").addEventListener("click",closePanel);
-$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSet("tonkas_admin_token",token);refresh();});
+$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSet("tonkas_admin_token",token);refresh();});
 async function api(path,opts){
  if(!base)throw new Error("Add your Supabase project URL in Settings first.");
  const input=opts&&opts.body?JSON.parse(opts.body):{};
@@ -808,7 +808,7 @@ async function api(path,opts){
  const headers={"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY};
  if(token)headers["x-hq-admin-token"]=token;
  const payload=action==="snapshot"?{action:"snapshot"}:{action:"command",command:input};
- const r=await fetch(base.replace(/\\/+$/,"")+"/functions/v1/tonkas-hq",{method:"POST",headers,body:JSON.stringify(payload)});
+ const r=await fetch(base.replace(/\/+$/,"")+"/functions/v1/tonkas-hq",{method:"POST",headers,body:JSON.stringify(payload)});
  const data=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(data.error||data.detail||("HTTP "+r.status));
  return data;
