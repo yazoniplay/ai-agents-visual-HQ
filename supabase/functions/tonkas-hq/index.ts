@@ -157,7 +157,7 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
      const call=part.functionCall;
      let result:any;
      try{result=await runAgentTool(String(call.name),call.args||{});}catch(error){result={error:String(error).slice(0,500)};}
-     responses.push({functionResponse:{name:String(call.name),response:result}});
+     responses.push({functionResponse:{name:String(call.name),id:String(call.id||""),response:result}});
     }
     contents.push({role:"user",parts:responses});
     continue;
@@ -227,7 +227,7 @@ async function runOneTask():Promise<any>{
    const inboxRows=await db("tonkas_messages?select=room,sender_id,recipient_id,content,created_at&order=created_at.desc&limit=40");
    const inbox=(inboxRows||[]).filter((m:any)=>m.recipient_id===agent.id||m.recipient_id==="all"||(!m.recipient_id&&m.room===agent.department)).slice(0,15).reverse();
    const webSearch=/WEB_RESEARCH_REQUIRED|\b(research|competitor|market|customer|pricing|trend|latest|benchmark|validate|evidence|source)\b/i.test(String(task.title)+" "+String(task.description));
-   const githubAccess=/BUSINESS_ID:\\s*hookengine/i.test(String(task.description));
+   const githubAccess=/BUSINESS_ID:\s*hookengine/i.test(String(task.description));
    const system="You are "+agent.name+", "+agent.role+". Your permanent charter: "+agent.objective+" You are a real specialist on Matt's team, not a generic chatbot. Read your assigned task, company goal and recent team messages. Reply to relevant messages, ask another agent for missing input when useful, and send concise messages to Matt or another specialist when a handoff is needed. "+(webSearch?"You have live Google Search and URL Context tools in this run. Use Google Search for current facts, open useful pages with URL Context, cite source links in the deliverable, and separate verified evidence from assumptions.":"Use the supplied company context; do not invent external research or claim to have browsed.")+" "+(githubAccess?"You have read-only GitHub tools for yazoniplay/HookEngine. Inspect actual repository files and recent commits when relevant, but do not claim to modify files or create commits.":"Do not claim to have inspected a repository.")+" Produce a concrete deliverable with headings, measurable recommendations and next steps. Never claim to edit a repository, publish, purchase, contact customers, or change accounts. External actions require owner approval. Return JSON only: {\"result\":\"deliverable\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\",\"messages\":[{\"to\":\"agent-id or matt or all\",\"room\":\"department-id\",\"content\":\"message\"}]}.";
    const prompt=JSON.stringify({task:{title:task.title,instructions:task.description},company_goal:await setting("company_goal",""),recent_messages:inbox});
    const raw=await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess);
