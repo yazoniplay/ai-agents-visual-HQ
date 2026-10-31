@@ -357,8 +357,23 @@ const AG=[
  {n:"Pham",shirt:"#4a9a4a",hair:"#222",hat:"#e0c070",at:"C"},
  {n:"Finn",shirt:"#ececec",hair:"#c84a2a",at:"K"},
  {n:"Dennis",shirt:"#8a4aa0",hair:"#333",at:"K"},
- {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"K"}
+ {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"K"},
+ {n:"Matt",shirt:"#7b4aa8",hair:"#34223e",at:"A"},
+ {n:"Trevor",shirt:"#bd7a35",hair:"#49321e",at:"H"},
+ {n:"Ivy",shirt:"#d36b91",hair:"#4a2b2b",at:"C"},
+ {n:"Noah",shirt:"#3f8c78",hair:"#242424",at:"A"}
 ].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,wait:Math.random()*3,spd:13+Math.random()*5,ph:Math.random()*6}));
+window.__tonkasSetAgents=function(list){
+ const destinations={command:"A",research:"C",factory:"F",media:"Md",revenue:"R",war:"H"};
+ (list||[]).forEach(agent=>{
+  const node=destinations[agent.department]||"A";
+  let sprite=AG.find(a=>a.n===agent.name);
+  if(!sprite){sprite={n:agent.name,shirt:"#6f7d8a",hair:"#38291f",at:node,x:NODES[node][0],y:NODES[node][1],cur:node,prev:null,to:null,wait:999,spd:15,ph:0};AG.push(sprite);}
+  sprite.destination=node;
+  if(sprite.cur!==node){if(sprite.to!==node){sprite.to=node;sprite.wait=0;}}
+  else{sprite.to=null;sprite.wait=999;}
+ });
+};
 const me={x:318,y:126,face:1,ph:0,target:null,autoEnter:null};
 const pen=[];
 for(let i=0;i<14;i++)pen.push({k:"hen",x:20+rnd()*100,y:46+rnd()*40,tx:0,ty:0,t:rnd()*3});
@@ -459,9 +474,10 @@ function step(dt){
   for(const a of AG){
     if(a.to){
       const [tx,ty]=NODES[a.to],ex=tx-a.x,ey=ty-a.y,d=Math.hypot(ex,ey);
-      if(d<1.5){a.prev=a.cur;a.cur=a.to;a.to=null;a.wait=1+Math.random()*5;}
+      if(d<1.5){a.prev=a.cur;a.cur=a.to;a.to=null;a.wait=a.destination?999:1+Math.random()*5;}
       else{a.x+=ex/d*a.spd*dt;a.y+=ey/d*a.spd*dt;a.mv=true;}
-    }else{
+    }else if(a.destination&&a.cur===a.destination){a.mv=false;a.wait=999;}
+    else{
       a.mv=false;a.wait-=dt;
       if(a.wait<=0){const opts=adj[a.cur].filter(n=>n!==a.prev);const pool=opts.length?opts:adj[a.cur];a.to=pool[Math.floor(Math.random()*pool.length)];}
     }
@@ -516,7 +532,7 @@ function draw(){
   const ps=Math.max(7,Z*2.5);
   DOORS.forEach(d=>plaque(d.name,SX(d.lab[0]),SY(d.lab[1]),ps));
   AG.forEach(a=>nameTag(a.n,SX(a.x),SY(a.y-18),Math.max(6,Z*2.2)));
-  nameTag("Matt",SX(me.x),SY(me.y-24),Math.max(6,Z*2.2),"#d9b8ff");
+  nameTag("You",SX(me.x),SY(me.y-24),Math.max(6,Z*2.2),"#d9b8ff");
   if(focus)nameTag(focus.t==="door"?"[E] enter":"[E] talk",SX(me.x)+Z*10,SY(me.y-28),Math.max(6,Z*2),"#fff");
 }
 function loop(now){
@@ -794,6 +810,7 @@ async function command(type,extra){
 function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const n=document.createElement("div");n.id="hql-error";n.className="hql-error";n.textContent=msg;$("hql-body").prepend(n);}}
 function render(s){
  latest=s;
+ if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[]);
  const active=(s.agents||[]).filter(a=>["working","planning","reviewing"].includes(a.status)).length;
  const waiting=(s.approvals||[]).length;
  setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
