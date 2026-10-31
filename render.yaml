@@ -22,7 +22,7 @@ services:
       - key: HQ_DEFAULT_PROVIDER
         value: openai
       - key: HQ_TICK_SECONDS
-        value: "45"
+        value: "300"
       - key: HQ_ADMIN_TOKEN
         generateValue: true
       - key: OPENAI_API_KEY
