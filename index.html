@@ -870,7 +870,7 @@ function render(s){
  html+='<div class="hql-card"><div class="hql-section">5-MINUTE TEAM MEETINGS</div>';
  const meetings=s.meetings||[];
  if(!meetings.length)html+='<div class="hql-muted">First meeting is scheduled automatically while autonomy is running.</div>';
- meetings.slice(0,4).forEach(m=>{html+='<article class="hql-agent" style="display:block"><b>'+esc(m.started_at||"Meeting")+'</b><p>'+esc(m.summary||"")+'</p><small>'+esc(String((m.decisions||[]).length)+' decisions · '+String((m.attendees||[]).length)+' attendees')+'</small></article>';});
+ meetings.slice(0,4).forEach(m=>{html+='<article class="hql-agent" style="display:block"><b>'+esc(m.started_at||"Meeting")+'</b><p>'+esc(m.summary||"")+'</p><small>'+esc(String((m.decisions||[]).length)+' decisions · '+String((m.attendees||[]).length)+' attendees')+'</small>';(m.decisions||[]).forEach(d=>{html+='<p><b>'+esc(d.owner||"Unassigned")+'</b> — '+esc(d.decision||"Follow-up")+'<br><small>Success: '+esc(d.success_criteria||"Not specified")+'</small></p>';});html+='</article>';});
  html+='</div>';
  html+='<div class="hql-card"><div class="hql-section">IVY // CUSTOMER DEMAND RADAR</div><div class="hql-muted">Public posts and reviews expressing unmet needs or willingness to pay. Signals are research leads, not confirmed customers.</div>';
  const opportunities=s.opportunities||[];
