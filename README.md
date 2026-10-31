@@ -1,47 +1,18 @@
-# AI HQ — Visual Headquarters
+# Tonkas Town — Autonomous AI HQ
 
-A game-inspired visual control center for a future autonomous AI workforce.
+Tonkas Town is a pixel-art control center for a small AI-operated online business.
 
-## Phase 1: Game world
-- Fixed, interconnected 10-room headquarters map.
-- Top-down spaceship-style environment.
-- Clickable departments and character inspection.
-- Room directory, search, labels and zoom controls.
-- Responsive layout and reduced-motion support.
+## Architecture
 
-## Phase 2: Operations interface
-- Department workspaces with Overview, Tasks, Chat and History tabs.
-- Agent personnel profiles with role, department and responsibility.
-- Local task queue with add and status-cycle interactions.
-- Local department notes and a session activity journal.
-- Clear offline states and explicit labels distinguishing local preview actions from real agent execution.
+- **Dashboard:** static HTML/canvas village served by GitHub Pages.
+- **Runtime:** FastAPI service in `backend/`.
+- **Persistence:** SQLite database on a Render persistent disk.
+- **Orchestrator:** Matt, the autonomous CEO and Chief of Staff.
+- **Specialists:** Dennis (research), Finn (sales/orders), Bunc (product operations), Maverick (marketing), Pham (finance), Luke (engineering), Trevor (quality/risk), Ivy (customer research), and Noah (operations analytics).
+- **Models:** OpenAI, Anthropic, or Gemini API. Provider keys stay on the backend.
 
-## Important status
+## Important
 
-This remains a **frontend-only preview**. The ten character identities and roles are placeholders, not configured model-backed agents. Tasks, notes and journal entries are held in React state for the current page session only; they are not persisted to a server. No AI model is connected, no agent executes work, and no real-time meetings, cross-agent conversations, notifications or push delivery exist yet.
+The runtime is not live until the Render service is deployed, a provider API key is configured, and the dashboard is connected. Sample revenue figures in the supplied village artwork are not connected to Stripe, Gumroad, or Fiverr and must not be treated as real financial data.
 
-The next phase should establish the persistent backend and data contracts before connecting live agents. Do not treat preview interactions as real autonomous execution.
-
-## Run locally
-
-Requires Node.js 20 or newer.
-
-```bash
-npm install
-npm run dev
-```
-
-## Build
-
-```bash
-npm run build
-npm run preview
-```
-
-## Stack
-
-- React + TypeScript
-- Vite
-- SVG world map
-- CSS interactions and animation
-- Lucide icons
+See [the autonomous runtime guide](docs/autonomous-runtime.md) for deployment and setup.
