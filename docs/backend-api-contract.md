@@ -41,7 +41,10 @@ The village UI is a frontend. It does not run agents itself. Configure `VITE_HQ_
       "recommendedAnswer": "Run a small validation test",
       "options": [
         { "id": "yes", "label": "Run a small test", "consequence": "Uses the approved test budget." },
-        { "id": "no", "label": "Reject the idea", "consequence": "The opportunity is archived." }
+        { "id": "no", "label": "Reject the idea", "consequence": "The opportunity is archived." },
+        { "id": "later", "label": "Revisit later", "consequence": "The opportunity is saved for another review." },
+        { "id": "more-research", "label": "Request more research", "consequence": "The research agent gathers more evidence." },
+        { "id": "revise", "label": "Revise the proposal", "consequence": "The team prepares a revised plan." }
       ],
       "createdAt": "2026-10-31T12:00:00Z"
     }
