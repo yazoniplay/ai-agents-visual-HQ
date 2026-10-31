@@ -122,9 +122,9 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
   let base="",key="",modelId="";
   if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-sonnet-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
   if(p==="groq"){key=Deno.env.get("GROQ_API_KEY")||"";base="https://api.groq.com/openai/v1";modelId=modelOverride||Deno.env.get("GROQ_MODEL")||"llama-3.1-8b-instant";if(!key)throw new Error("GROQ_API_KEY missing in Supabase Function Secrets.");}
-  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"").replace(/\\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"qwen3:4b";if(!base)throw new Error("OLLAMA_BASE_URL must point to an Ollama endpoint reachable from Supabase.");}
+  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"").replace(/\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"qwen3:4b";if(!base)throw new Error("OLLAMA_BASE_URL must point to an Ollama endpoint reachable from Supabase.");}
   const h:Record<string,string>={"Content-Type":"application/json"};if(key)h.Authorization="Bearer "+key;
-  const r=await fetch(base.replace(/\\/+$/,"")+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:modelId,temperature:0.3,max_tokens:2200,messages:[{role:"system",content:system},{role:"user",content:prompt}]}),signal});
+  const r=await fetch(base.replace(/\/+$/,"")+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:modelId,temperature:0.3,max_tokens:2200,messages:[{role:"system",content:system},{role:"user",content:prompt}]}),signal});
   const t=await r.text();if(!r.ok)throw new Error(p+" "+r.status+": "+t.slice(0,500));
   const data=JSON.parse(t),content=data.choices?.[0]?.message?.content;if(typeof content!=="string"||!content.trim())throw new Error(p+" returned an empty completion.");return content;
  }
