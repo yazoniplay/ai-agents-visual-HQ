@@ -37,7 +37,7 @@ async function setAgentState(agentId:string,status:string,point?:{x:number;y:num
 async function message(room:string,sender:string,content:string,to:string|null=null):Promise<void>{
  await db("tonkas_messages",{method:"POST",body:{room,sender_id:sender,recipient_id:to,content:String(content).slice(0,10000)},prefer:"return=minimal"});
  await log("message",sender,"New message in "+room,{recipient:to});
- if(sender!=="owner"&&(to==="all"||AGENT_IDS.has(sender)||AGENT_IDS.has(String(to||"")))){
+ if(sender!=="owner"&&to&&(to==="all"||AGENT_IDS.has(sender)||AGENT_IDS.has(String(to)))){
   const participants=new Set<string>();
   if(AGENT_IDS.has(sender))participants.add(sender);
   if(to==="all")for(const agent of AGENTS)participants.add(agent.id);
