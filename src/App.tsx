@@ -101,9 +101,12 @@ function App() {
     const title = taskTitle.trim();
     if (!title || !selectedRoom) return;
     const task: Task = { id: Date.now(), title, room: selectedRoom, status: "Queued", created: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
-    if (connectionState === "connected") submitHQCommand({ type: "task.create", departmentId: selectedRoom, title }).catch((error: unknown) => setBackendError(error instanceof Error ? error.message : "Task command failed."));
-    setTasks((current) => [task, ...current]);
-    recordEvent("Task added", `${title} · ${activeRoom?.name}`);
+    if (connectionState === "connected") {
+      submitHQCommand({ type: "task.create", departmentId: selectedRoom, title }).then(() => fetchHQSnapshot().then(setLiveSnapshot)).catch((error: unknown) => setBackendError(error instanceof Error ? error.message : "Task command failed."));
+    } else {
+      setTasks((current) => [task, ...current]);
+      recordEvent("Task added", `${title} · ${activeRoom?.name}`);
+    }
     setTaskTitle("");
     setWorkspaceTab("tasks");
   };
@@ -116,9 +119,12 @@ function App() {
     event.preventDefault();
     const body = messageDraft.trim();
     if (!body || !selectedRoom) return;
-    if (connectionState === "connected") submitHQCommand({ type: "agent.message", departmentId: selectedRoom, message: body }).catch((error: unknown) => setBackendError(error instanceof Error ? error.message : "Message command failed."));
-    setMessages((current) => [...current, { id: Date.now(), room: selectedRoom, body, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    recordEvent("Local note posted", `${activeRoom?.name} · message saved in this preview`);
+    if (connectionState === "connected") {
+      submitHQCommand({ type: "agent.message", departmentId: selectedRoom, message: body }).then(() => fetchHQSnapshot().then(setLiveSnapshot)).catch((error: unknown) => setBackendError(error instanceof Error ? error.message : "Message command failed."));
+    } else {
+      setMessages((current) => [...current, { id: Date.now(), room: selectedRoom, body, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute": "2-digit" }) }]);
+      recordEvent("Local note posted", `${activeRoom?.name} · message saved in this preview`);
+    }
     setMessageDraft("");
   };
 
@@ -154,7 +160,7 @@ function App() {
           {activeAgent ? <div className="panel-content">
             <div className="panel-topline"><span className="eyebrow">AGENT PERSONNEL FILE</span><button className="close-button" onClick={() => setSelectedAgent(null)}><X size={15} /></button></div>
             <div className="agent-profile"><div className="agent-portrait" style={{ "--agent-color": activeAgent.color } as CSSProperties}><span className="portrait-glass" /></div><h2>{activeAgent.name}</h2><span className="agent-role">{activeAgent.role}</span><span className="preview-pill">{agentFor(activeAgent.name)?.status?.toUpperCase() ?? "AWAITING BACKEND"}</span></div>
-            <div className="panel-divider" /><div className="detail-row"><span>DEPARTMENT</span><strong>{rooms.find((r) => r.id === activeAgent.room)?.name}</strong></div><div className="detail-row"><span>RESPONSIBILITY</span><strong>{activeAgent.focus}</strong></div><div className="detail-row"><span>RUNTIME STATUS</span><strong className={agentFor(activeAgent.name) ? "live-label" : "offline-label"}>{agentFor(activeAgent.name)?.status?.toUpperCase() ?? "NOT CONNECTED"}</strong></div><div className="detail-row"><span>CURRENT TASK</span><strong>{agentFor(activeAgent.name)?.currentTask ?? "No live task reported"}</strong></div><p className="panel-note">{connectionState === "connected" ? "Runtime details are supplied by the connected orchestration backend." : "Profile preview only. Connect your VPS backend to show actual model state and task execution."}</p>
+            <div className="panel-divider" /><div className="detail-row"><span>DEPARTMENT</span><strong>{rooms.find((r) => r.id === activeAgent.room)?.name}</strong></div><div className="detail-row"><span>RESPONSIBILITY</span><strong>{activeAgent.focus}</strong></div><div className="detail-row"><span>RUNTIME STATUS</span><strong className={agentFor(activeAgent.name) ? "live-label" : "offline-label"}>{agentFor(activeAgent.name)?.status?.toUpperCase() ?? "NOT CONNECTED"}</strong></div><div className="detail-row"><span>CURRENT TASK</span><strong>{agentFor(activeAgent.name)?.currentTask ?? "No live task reported"}</strong></div><div className="detail-row"><span>LATEST THOUGHT</span><strong>{agentFor(activeAgent.name)?.thought ?? "No thought stream available"}</strong></div><p className="panel-note">{connectionState === "connected" ? "Runtime details are supplied by the connected orchestration backend." : "Profile preview only. Connect your VPS backend to show actual model state and task execution."}</p>
             <button className="workspace-open" onClick={() => { setSelectedAgent(null); setWorkspaceTab("overview"); }}>OPEN DEPARTMENT <ChevronRight size={14} /></button>
           </div> : activeRoom ? <div className="panel-content">
             <div className="panel-topline"><button className="back-link" onClick={() => { setSelectedRoom(null); setWorkspaceTab("overview"); }}><ArrowLeft size={13} /> MAP OVERVIEW</button><span className="directory-count">DEPT. {String(rooms.indexOf(activeRoom) + 1).padStart(2, "0")}</span></div>
