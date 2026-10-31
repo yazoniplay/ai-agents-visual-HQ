@@ -216,3 +216,16 @@
 @media(max-width:1100px){.phase-two-layout{grid-template-columns:minmax(0,1fr) 320px}.phase-two-layout .map-frame{min-height:620px}}
 @media(max-width:760px){.phase-two-layout{grid-template-columns:1fr}.phase-two-layout .map-frame{min-height:480px;border-right:0;border-bottom:3px solid #9a8356}.phase-two-layout .map-canvas{inset:24px -30px 42px;width:calc(100% + 60px)}.phase-two-layout .map-canvas svg{max-height:460px}.finance-grid{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.windmill-blades,.village-agent.is-working .agent-body,.village-agent.is-working .agent-nameplate{animation:none}}
+
+.village-agent{transition:transform .65s steps(6,end),filter .15s ease}
+.revenue-streams{margin:16px 0}
+.revenue-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.revenue-grid>div{display:flex;flex-direction:column;gap:5px;padding:9px;background:#eadbb9;border:1px solid #c7b48a;border-radius:5px}
+.revenue-grid small{font:7px var(--mono);letter-spacing:.6px;color:#887653}
+.revenue-grid strong{font:700 12px var(--mono);color:#4d422e;overflow-wrap:anywhere}
+.recommended-answer{display:block;margin-top:7px;padding:7px;background:#e9d8ae;border-left:3px solid #78965b;color:#62553d!important}
+.approval-options button{display:flex;flex-direction:column;gap:3px}
+.approval-options button small{font-size:7px;color:#f5e9cf;opacity:.82;line-height:1.35}
+.dynamic-notch{font:inherit;cursor:pointer}
+.dynamic-notch:focus-visible{outline:2px solid #e8d5a8;outline-offset:3px}
+@media(max-width:760px){.phase-two-layout .map-frame{min-height:460px}.phase-two-layout .map-canvas{inset:24px -30px 42px;width:calc(100% + 60px)}}
