@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   Activity, ChevronDown, ChevronRight, CircleHelp, DoorOpen, Maximize2,
   Minus, Plus, Radio, Search, Settings2, Users, X,
@@ -173,7 +173,7 @@ function App() {
               <div className="panel-content">
                 <div className="panel-topline"><span className="eyebrow">PERSONNEL FILE</span><button className="close-button" onClick={() => setSelectedAgent(null)}><X size={15} /></button></div>
                 <div className="agent-profile">
-                  <div className="agent-portrait" style={{ "--agent-color": activeAgent.color } as React.CSSProperties}><span className="portrait-glass" /></div>
+                  <div className="agent-portrait" style={{ "--agent-color": activeAgent.color } as CSSProperties}><span className="portrait-glass" /></div>
                   <h2>{activeAgent.name}</h2><span className="agent-role">{activeAgent.role}</span>
                   <span className="preview-pill">PREVIEW CHARACTER</span>
                 </div>
@@ -185,7 +185,7 @@ function App() {
             ) : activeRoom ? (
               <div className="panel-content">
                 <div className="panel-topline"><span className="eyebrow">DEPARTMENT FILE // {String(rooms.indexOf(activeRoom) + 1).padStart(2, "0")}</span><button className="close-button" onClick={() => setSelectedRoom(null)}><X size={15} /></button></div>
-                <div className="room-profile" style={{ "--room-color": activeRoom.color } as React.CSSProperties}>
+                <div className="room-profile" style={{ "--room-color": activeRoom.color } as CSSProperties}>
                   <div className="room-emblem">{activeRoom.icon}</div>
                   <div className="eyebrow">{activeRoom.department.toUpperCase()} DIVISION</div>
                   <h2>{activeRoom.name}</h2>
