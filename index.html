@@ -743,7 +743,7 @@ paintStatic();
 #hq-live[data-state=connected] .dot{background:#2f8f4a}
 #hq-live[data-state=working] .dot{background:#d98422}
 #hq-live-panel{position:fixed;z-index:31;right:12px;top:calc(108px + env(safe-area-inset-top,0px));width:min(490px,calc(100vw - 24px));max-height:calc(100vh - 130px);overflow:auto;background:#f3dfae;border:4px solid #5a3416;border-radius:7px;box-shadow:0 8px 0 #4a2a12;color:#46301a;display:none;font:13px Archivo,system-ui,sans-serif}
-#hq-live-panel.open{display:block}
+#hq-live-panel.open{display:block!important}
 .hql-head{position:sticky;top:0;background:linear-gradient(#a8743a,#80502a);color:#f7e3b0;padding:13px 14px;border-bottom:3px solid #4a2a12;display:flex;justify-content:space-between;align-items:center;z-index:2}
 .hql-head strong{font:9px "Press Start 2P",monospace}
 .hql-head button,.hql-btn{border:2px solid #5a3416;border-radius:4px;background:#f6e2b0;color:#46301a;padding:7px 9px;font:700 10px "Space Mono",monospace;cursor:pointer}
@@ -785,18 +785,22 @@ paintStatic();
 "use strict";
 const $=id=>document.getElementById(id);
 const panel=$("hq-live-panel"), trigger=$("hq-live");
+if(!panel||!trigger){console.error("Tonkas HQ controls missing from page");return;}
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_ZWLGkmQeAYgdUWoOOArAVw_2qA7xjSM";
 const DEFAULT_SUPABASE_URL="https://vgbsthdvohazsfpgugmu.supabase.co";
-let base=localStorage.getItem("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=localStorage.getItem("tonkas_admin_token")||"", latest=null, busy=false;
+const safeGet=k=>{try{return localStorage.getItem(k)||"";}catch(_){return "";}};
+const safeSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){/* storage blocked; current session remains usable */}};
+let base=safeGet("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=safeGet("tonkas_admin_token"), latest=null, busy=false;
 if(/onrender\\.com$/i.test(base))base=DEFAULT_SUPABASE_URL;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function setState(state,label){trigger.dataset.state=state;const el=$("hql-label");if(el)el.textContent=label;}
+function openPanel(){panel.classList.add("open");panel.style.display="block";trigger.setAttribute("aria-expanded","true");}
+function closePanel(){panel.classList.remove("open");panel.style.display="none";trigger.setAttribute("aria-expanded","false");}
+trigger.setAttribute("aria-controls","hq-live-panel");trigger.setAttribute("aria-expanded","false");
+trigger.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();panel.classList.contains("open")?closePanel():openPanel();});
 $("hql-url").value=base;$("hql-token").value=token;
-function setState(state,label){trigger.dataset.state=state;$("hql-label").textContent=label;}
-function openPanel(){panel.classList.add("open");}
-function closePanel(){panel.classList.remove("open");}
-trigger.addEventListener("click",()=>panel.classList.toggle("open"));
 $("hql-close").addEventListener("click",closePanel);
-$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();localStorage.setItem("tonkas_api_url",base);localStorage.setItem("tonkas_admin_token",token);refresh();});
+$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSet("tonkas_admin_token",token);refresh();});
 async function api(path,opts){
  if(!base)throw new Error("Add your Supabase project URL in Settings first.");
  const input=opts&&opts.body?JSON.parse(opts.body):{};
