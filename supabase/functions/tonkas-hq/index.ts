@@ -59,7 +59,7 @@ function primaryProviderForAgent(agentId:string):string{
  return ["dennis","maverick","ivy"].includes(agentId)?"gemini":"ashnaai";
 }
 function providerForTask(agentId:string,task:any):string{
- const primary=primaryProviderForAgent(agentId),lightweight=(task.priority==="low"||/\\b(lightweight|quick|simple|short)\\b/i.test(String(task.description||"")));
+ const primary=primaryProviderForAgent(agentId),lightweight=(task.priority==="low"||/\b(lightweight|quick|simple|short)\b/i.test(String(task.description||"")));
  if(!lightweight)return primary;
  const preferred=(Deno.env.get("HQ_LIGHTWEIGHT_PROVIDER")||"groq").toLowerCase();
  if(preferred==="groq"&&Deno.env.get("GROQ_API_KEY"))return "groq";
