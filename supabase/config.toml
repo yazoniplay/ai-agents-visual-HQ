@@ -1,0 +1,4 @@
+project_id = "vgbsthdvohazsfpgugmu"
+
+[functions.tonkas-hq]
+verify_jwt = false
