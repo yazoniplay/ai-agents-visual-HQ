@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
   Activity, ArrowLeft, ChevronDown, ChevronRight, CircleHelp, Clock3,
-  MessageSquare, Plus, Radio, Search, Send, Settings2, Users, X,
+  MessageSquare, Plus, Radio, Search, Send, Settings2, X,
 } from "lucide-react";
 
 type Room = {
