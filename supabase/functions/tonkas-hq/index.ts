@@ -49,21 +49,14 @@ async function addTask(title:string,description:string,agent:string|null,creator
 async function addApproval(title:string,context:string,recommended:string,options:any[],actor:string):Promise<void>{if(!Array.isArray(options)||options.length!==5)throw new Error("Exactly five options are required.");await db("tonkas_approvals",{method:"POST",body:{title:String(title).slice(0,180),context:String(context).slice(0,10000),recommended_option:String(recommended||""),options,status:"pending",created_by:actor,created_at:now()},prefer:"return=minimal"});await log("approval.created",actor,"Decision needed: "+title,{});}
 async function snapshot():Promise<any>{
  const r=await Promise.all([
-  db("tonkas_agents?select=*&order=name.asc"),
-  db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),
-  db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),
-  db("tonkas_messages?select=*&order=created_at.desc&limit=100"),
-  db("tonkas_activity?select=*&order=created_at.desc&limit=100"),
-  db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now())),
-  db("tonkas_meetings?select=*&order=started_at.desc&limit=12"),
-  db("tonkas_opportunities?select=*&order=discovered_at.desc&limit=30")
+  db("tonkas_agents?select=*&order=name.asc"),db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),db("tonkas_messages?select=*&order=created_at.desc&limit=100"),db("tonkas_activity?select=*&order=created_at.desc&limit=100"),db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now())),db("tonkas_meetings?select=*&order=started_at.desc&limit=50"),db("tonkas_opportunities?select=*&order=discovered_at.desc&limit=30"),db("tonkas_agent_profiles?select=*&order=agent_id.asc"),db("tonkas_agent_memory?select=*&order=created_at.desc&limit=60"),db("tonkas_agent_runs?select=*&order=started_at.desc&limit=50")
  ]);
- const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse(),character_brains=r[5]||[],meetings=r[6]||[],opportunities=r[7]||[];
- const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true";
- const quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null;
- return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,meetings,opportunities,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
+ const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse(),character_brains=r[5]||[],meetings=r[6]||[],opportunities=r[7]||[],agent_profiles=r[8]||[],agent_memories=r[9]||[],agent_runs=r[10]||[];
+ const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true",quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null,autonomy=(await setting("autonomy_enabled","false"))==="true";
+ const lastMeeting=meetings[0]||null,scheduledBoundary=(Math.floor(Date.now()/300000)+1)*300000,storedNext=lastMeeting?.next_meeting_at?Date.parse(lastMeeting.next_meeting_at):NaN;
+ const next_meeting_at=autonomy?(Number.isFinite(storedNext)&&storedNext>Date.now()?lastMeeting.next_meeting_at:new Date(scheduledBoundary).toISOString()):null;
+ return {ok:true,runtime:"live",autonomy_enabled:autonomy,gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,meetings,opportunities,agent_profiles,agent_memories,agent_runs,next_meeting_at,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
 }
-
 function parse(raw:string):any{
  let s=String(raw||"").trim();
  const fence=String.fromCharCode(96).repeat(3);
@@ -218,13 +211,15 @@ async function mattCycle(force:boolean=false):Promise<any>{
   db("tonkas_tasks?select=id,title,description,assigned_to,status,priority&status=in.(queued,running)&order=created_at.asc&limit=30"),
   db("tonkas_activity?select=kind,actor,message&order=created_at.desc&limit=15"),
   db("tonkas_tasks?select=title,assigned_to,status,result,updated_at&status=in.(completed,blocked,needs_review)&order=updated_at.desc&limit=20"),
-  db("tonkas_messages?select=room,sender_id,recipient_id,content,created_at&order=created_at.desc&limit=30")
+  db("tonkas_messages?select=room,sender_id,recipient_id,content,created_at&order=created_at.desc&limit=30"),
+  db("tonkas_agent_profiles?select=agent_id,specialty,mission,responsibilities,procedure,quality_bar,guardrails,procedure_version"),
+  db("tonkas_agent_memory?select=agent_id,memory_type,content,created_at&order=created_at.desc&limit=35")
  ]);
  const lastWeb=await setting("matt_last_web_research_at","");
  const lastWebMs=Date.parse(lastWeb);
  const useWeb=!Number.isFinite(lastWebMs)||Date.now()-lastWebMs>12*60*60*1000;
- const system="You are Matt, the autonomous CEO of Tonkas Town. You run the company without waiting for the owner to press buttons. Your portfolio is HookEngine (active Chrome extension business) and Venture Studio (research and validation of new online businesses). HookEngine is the default priority. SMP OPS KIT is permanently excluded. You can use Google Search and URL Context when web research is enabled; use them for current market, competitor, customer, product and platform facts. Cite sources in the task brief and separate evidence from assumptions. You also have read-only GitHub tools for yazoniplay/HookEngine; inspect actual repository files and recent commits before making HookEngine engineering recommendations. You cannot edit files, push commits, open pull requests or deploy. Review company memory, every agent's workload, open tasks, completed deliverables and team messages. Delegate work to specialists, ask them questions, send follow-up messages, compare their outputs and create the next concrete tasks. Do not merely produce strategy documents repeatedly: move work toward measurable HookEngine activation, retention, product quality, ethical growth, or evidence-backed Venture Studio validation. If the queue is empty, create at least two distinct next-phase tasks unless a real owner approval is blocking progress. Every task description must begin BUSINESS_ID: hookengine, venture_studio, or portfolio. For research tasks, prefix the description with WEB_RESEARCH_REQUIRED. Rotate specialists so Noah, Ivy, Dennis, Finn, Bunc, Maverick, Pham, Luke and Trevor all receive meaningful work over time. At most 3 new tasks and 6 messages per cycle. Never duplicate an open task or repeat a completed deliverable unless the next phase is materially different. Never claim external actions happened. Spending, publishing, contacting customers, changing accounts and irreversible actions require owner approval. Return only JSON: {summary:string,tasks:[{title:string,description:string,agent:string,priority:string,department:string}],messages:[{to:string,room:string,content:string}],approvals:[{title:string,context:string,recommended:string,options:[{id:string,label:string,consequence:string}]}]}. Each task needs a measurable outcome and a concrete internal deliverable.";
- const generated=await modelWithFallback(system,JSON.stringify({goal:await setting("company_goal",""),agents:r[0],open_tasks:r[1],recent_activity:r[2],recent_completed_work:r[3],team_messages:r[4],web_research_enabled:useWeb}),useWeb,true);
+ const system="You are Matt, the autonomous CEO of Tonkas Town. You run the company without waiting for the owner to press buttons. Your portfolio is HookEngine (active Chrome extension business) and Venture Studio (research and validation of new online businesses). HookEngine is the default priority. SMP OPS KIT is permanently excluded. You can use Google Search and URL Context when web research is enabled; use them for current market, competitor, customer, product and platform facts. Cite sources in the task brief and separate evidence from assumptions. You also have read-only GitHub tools for yazoniplay/HookEngine; inspect actual repository files and recent commits before making HookEngine engineering recommendations. You cannot edit files, push commits, open pull requests or deploy. Review company memory, each agent's saved specialist profile and versioned procedure, every agent's workload, open tasks, completed deliverables and team messages. Delegate only to the specialist whose charter matches the work. Delegate work to specialists, ask them questions, send follow-up messages, compare their outputs and create the next concrete tasks. Do not merely produce strategy documents repeatedly: move work toward measurable HookEngine activation, retention, product quality, ethical growth, or evidence-backed Venture Studio validation. If the queue is empty, create at least two distinct next-phase tasks unless a real owner approval is blocking progress. Every task description must begin BUSINESS_ID: hookengine, venture_studio, or portfolio. For research tasks, prefix the description with WEB_RESEARCH_REQUIRED. Rotate specialists so Noah, Ivy, Dennis, Finn, Bunc, Maverick, Pham, Luke and Trevor all receive meaningful work over time. At most 3 new tasks and 6 messages per cycle. Never duplicate an open task or repeat a completed deliverable unless the next phase is materially different. Never claim external actions happened. Spending, publishing, contacting customers, changing accounts and irreversible actions require owner approval. Return only JSON: {summary:string,tasks:[{title:string,description:string,agent:string,priority:string,department:string}],messages:[{to:string,room:string,content:string}],approvals:[{title:string,context:string,recommended:string,options:[{id:string,label:string,consequence:string}]}]}. Each task needs a measurable outcome and a concrete internal deliverable.";
+ const generated=await modelWithFallback(system,JSON.stringify({goal:await setting("company_goal",""),agents:r[0],open_tasks:r[1],recent_activity:r[2],recent_completed_work:r[3],team_messages:r[4],specialist_profiles:r[5],institutional_memory:r[6],web_research_enabled:useWeb}),useWeb,true);
  const data=parse(generated.content);
  if(useWeb)await setSetting("matt_last_web_research_at",now());
  const sources=Array.isArray(data.web_sources)?data.web_sources:[];
@@ -258,45 +253,30 @@ async function runOneTask():Promise<any>{
  const priorityOrder:Record<string,number>={high:0,normal:1,low:2};const queue=(rows||[]).sort((a:any,b:any)=>(priorityOrder[String(a.priority)]??1)-(priorityOrder[String(b.priority)]??1));
  for(const task of queue){
   const agent=AGENTS.find(a=>a.id===task.assigned_to);if(!agent)continue;
-  const claimed=await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id)+"&status=eq.queued",{method:"PATCH",body:{status:"running",updated_at:now()},prefer:"return=representation"});
-  if(!claimed.length)continue;
-  await setAgentState(agent.id,"working",HOME_POINTS[agent.department]||HOME_POINTS.factory,task.id);
-  await log("task.started",agent.name,"Started: "+task.title,{task_id:task.id});
+  const claimed=await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id)+"&status=eq.queued",{method:"PATCH",body:{status:"running",updated_at:now()},prefer:"return=representation"});if(!claimed.length)continue;
+  const startedAt=now();await setAgentState(agent.id,"working",HOME_POINTS[agent.department]||HOME_POINTS.factory,task.id);await log("task.started",agent.name,"Started: "+task.title,{task_id:task.id});
   try{
-   const inboxRows=await db("tonkas_messages?select=room,sender_id,recipient_id,content,created_at&order=created_at.desc&limit=40");
-   const inbox=(inboxRows||[]).filter((m:any)=>m.recipient_id===agent.id||m.recipient_id==="all"||(!m.recipient_id&&m.room===agent.department)).slice(0,15).reverse();
-   const webSearch=/WEB_RESEARCH_REQUIRED|\b(research|competitor|market|customer|pricing|trend|latest|benchmark|validate|evidence|source)\b/i.test(String(task.title)+" "+String(task.description));
-   const githubAccess=/BUSINESS_ID:\s*hookengine/i.test(String(task.description));
-   const system="You are "+agent.name+", "+agent.role+". Your permanent charter: "+agent.objective+" You are a real specialist on Matt's team, not a generic chatbot. Read your assigned task, company goal and recent team messages. Reply to relevant messages, ask another agent for missing input when useful, and send concise messages to Matt or another specialist when a handoff is needed. "+(webSearch?"You have live Google Search and URL Context tools in this run. Use Google Search for current facts, open useful pages with URL Context, cite source links in the deliverable, and separate verified evidence from assumptions.":"Use the supplied company context; do not invent external research or claim to have browsed.")+" "+(githubAccess?"You have read-only GitHub tools for yazoniplay/HookEngine. Inspect actual repository files and recent commits when relevant, but do not claim to modify files or create commits.":"Do not claim to have inspected a repository.")+" Produce a concrete deliverable with headings, measurable recommendations and next steps. Never claim to edit a repository, publish, purchase, contact customers, or change accounts. External actions require owner approval. Return JSON only: {\"result\":\"deliverable\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\",\"messages\":[{\"to\":\"agent-id or matt or all\",\"room\":\"department-id\",\"content\":\"message\"}]}.";
+   const [inboxRows,profileRows,memoryRows]=await Promise.all([db("tonkas_messages?select=room,sender_id,recipient_id,content,created_at&order=created_at.desc&limit=40"),db("tonkas_agent_profiles?select=*&agent_id=eq."+encodeURIComponent(agent.id)+"&limit=1"),db("tonkas_agent_memory?select=memory_type,content,created_at&agent_id=eq."+encodeURIComponent(agent.id)+"&order=created_at.desc&limit=12")]);
+   const inbox=(inboxRows||[]).filter((m:any)=>m.recipient_id===agent.id||m.recipient_id==="all"||(!m.recipient_id&&m.room===agent.department)).slice(0,15).reverse(),profile=profileRows?.[0]||null,persistentMemory=memoryRows||[];
+   const webSearch=/WEB_RESEARCH_REQUIRED|\b(research|competitor|market|customer|pricing|trend|latest|benchmark|validate|evidence|source)\b/i.test(String(task.title)+" "+String(task.description)),githubAccess=/BUSINESS_ID:\s*hookengine/i.test(String(task.description));
+   const system="You are "+agent.name+", "+agent.role+". Your permanent charter: "+agent.objective+". Your saved specialty profile and versioned operating procedure are authoritative: "+JSON.stringify(profile||{})+". Follow the procedure step by step. Your persistent institutional memory from prior work is: "+JSON.stringify(persistentMemory)+". You are a specialist, not a generic chatbot. Read your assigned task, company goal and recent team messages. Reply to relevant messages, ask another agent for missing input when useful, and send concise messages to Matt or another specialist when a handoff is needed. "+(webSearch?"You have live Google Search and URL Context tools in this run. Use Google Search for current facts, open useful pages with URL Context, cite source links in the deliverable, and separate verified evidence from assumptions.":"Use supplied company context; do not invent external research or claim to have browsed.")+" "+(githubAccess?"You have read-only GitHub tools for yazoniplay/HookEngine. Inspect actual repository files and recent commits when relevant, but do not claim to modify files or create commits.":"Do not claim to have inspected a repository.")+" Produce a concrete deliverable with headings, measurable recommendations and next steps. At the end, provide up to 3 durable memory_updates: reusable facts, decisions, constraints, or lessons that improve future work. Do not store temporary status or repeat the task description. Never claim to edit a repository, publish, purchase, contact customers, or change accounts. External actions require owner approval. Return JSON only: {\"result\":\"deliverable\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\",\"memory_updates\":[{\"type\":\"lesson|decision|fact\",\"content\":\"durable memory\"}],\"messages\":[{\"to\":\"agent-id or matt or all\",\"room\":\"department-id\",\"content\":\"message\"}]}";
    const runtimeState=agent.id==="noah"?await Promise.all([db("tonkas_agents?select=id,status,department"),db("tonkas_tasks?select=id,status,priority,assigned_to,created_at,updated_at"),db("tonkas_approvals?select=id,status")]):null;
-   const prompt=JSON.stringify({task:{title:task.title,instructions:task.description},company_goal:await setting("company_goal",""),recent_messages:inbox,runtime_state:runtimeState});
-   const generated=await modelWithFallback(system,prompt,webSearch,githubAccess);
-   const result=parse(generated.content);
-   let status=["completed","blocked","needs_review"].includes(result.status)?result.status:"completed";
-   let deliverable=String(result.result||"").slice(0,12500);
-   if(generated.provider==="ollama"&&(webSearch||githubAccess)){if(status==="completed")status="needs_review";deliverable+="\n\n> **Verification required:** This task ran on the Ollama fallback. Live Google Search/URL Context and GitHub repository tools were unavailable, so current external claims and repository-specific findings have not been verified.";}
-   const sources=Array.isArray(result.web_sources)?result.web_sources:[];
+   const prompt=JSON.stringify({task:{title:task.title,instructions:task.description},company_goal:await setting("company_goal",""),agent_profile:profile,persistent_memory:persistentMemory,recent_messages:inbox,runtime_state:runtimeState});
+   const generated=await modelWithFallback(system,prompt,webSearch,githubAccess),result=parse(generated.content);
+   let status=["completed","blocked","needs_review"].includes(result.status)?result.status:"completed",deliverable=String(result.result||"").slice(0,12500);
+   if(generated.provider==="ollama"&&(webSearch||githubAccess)){if(status==="completed")status="needs_review";deliverable+="\n\n> **Verification required:** This task ran on the Ollama fallback. Live web research and GitHub tools were unavailable, so current external claims and repository-specific findings have not been verified.";}
+   const sources=Array.isArray(result.web_sources)?result.web_sources:[],updates=Array.isArray(result.memory_updates)?result.memory_updates.slice(0,3):[],cleanUpdates=updates.map((m:any)=>({memory_type:["lesson","decision","fact"].includes(String(m.type))?String(m.type):"lesson",content:String(m.content||"").trim().slice(0,1800)})).filter((m:any)=>m.content.length>=20);
    if(sources.length)deliverable+="\n\n## Web sources\n"+sources.slice(0,12).map((source:any)=>"- ["+String(source.title||"Source").replace(/\]/g,"")+"]("+String(source.url||"")+")").join("\n");
    if(Array.isArray(result.web_search_queries)&&result.web_search_queries.length)deliverable+="\n\n**Search queries:** "+result.web_search_queries.slice(0,6).join("; ");
    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status,result:deliverable.slice(0,14000),updated_at:now()},prefer:"return=minimal"});
    await setAgentState(agent.id,status==="completed"?"idle":status==="needs_review"?"reviewing":"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
-   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length});
-   await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");
-   if(result.message_to_matt)await message("command",agent.id,String(result.message_to_matt).slice(0,2000),"matt");
-   for(const outgoing of (result.messages||[]).slice(0,5)){
-    const recipient=String(outgoing.to||"matt");
-    if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;
-    await message(String(outgoing.room||agent.department),agent.id,String(outgoing.content||"").slice(0,3000),recipient);
-   }
-   return {task_id:task.id,agent:agent.id,status,provider:generated.provider,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length};
-  }catch(e){
-   const reason=String(e).slice(0,700);
-   await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});
-   await setAgentState(agent.id,"needs_setup",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
-   if(isQuotaError(e))await pauseForQuota(reason);
-   await log("task.blocked",agent.name,reason.slice(0,300),{task_id:task.id,quota_blocked:isQuotaError(e)});
-   return {task_id:task.id,agent:agent.id,status:"blocked",error:reason.slice(0,300),quota_blocked:isQuotaError(e)};
-  }
+   for(const memory of cleanUpdates)await db("tonkas_agent_memory?on_conflict=agent_id,source_task_id,memory_type",{method:"POST",body:{agent_id:agent.id,memory_type:memory.memory_type,content:memory.content,source_task_id:task.id,confidence:0.85,created_at:now()},prefer:"resolution=merge-duplicates,return=minimal"});
+   await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",status,procedure_version:profile?.procedure_version||1,started_at:startedAt,finished_at:now(),summary:deliverable.slice(0,2400),sources,memory_updates:cleanUpdates},prefer:"return=minimal"});
+   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1});
+   await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");if(result.message_to_matt)await message("command",agent.id,String(result.message_to_matt).slice(0,2000),"matt");
+   for(const outgoing of (result.messages||[]).slice(0,5)){const recipient=String(outgoing.to||"matt");if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;await message(String(outgoing.room||agent.department),agent.id,String(outgoing.content||"").slice(0,3000),recipient);}
+   return {task_id:task.id,agent:agent.id,status,provider:generated.provider,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1};
+  }catch(e){const reason=String(e).slice(0,700);await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});await setAgentState(agent.id,"needs_setup",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,status:"blocked",started_at:startedAt,finished_at:now(),summary:reason,procedure_version:1},prefer:"return=minimal"}).catch(()=>{});if(isQuotaError(e))await pauseForQuota(reason);await log("task.blocked",agent.name,reason.slice(0,300),{task_id:task.id,quota_blocked:isQuotaError(e)});return {task_id:task.id,agent:agent.id,status:"blocked",error:reason.slice(0,300),quota_blocked:isQuotaError(e)};}
  }
  return {task:null,reason:"queue_empty"};
 }
@@ -341,7 +321,7 @@ async function runCharacterBrain():Promise<any>{
   const action=allowedActions.has(String(raw.action))?String(raw.action):"idle";
   const direction=directions.has(String(raw.look_direction))?String(raw.look_direction):"down";
   const target=AGENT_IDS.has(String(raw.target_agent||""))&&String(raw.target_agent)!==id?String(raw.target_agent):null;
-  const speech=["talking","meeting"].includes(action)?String(raw.speech||"").replace(/[\\r\\n]+/g," ").slice(0,150):"";
+  const speech=["talking","meeting"].includes(action)?String(raw.speech||"").replace(/[\\r\n]+/g," ").slice(0,150):"";
   states.push({agent_id:id,destination_node:destination,action,look_direction:direction,target_agent:target,speech,updated_at:now(),expires_at:new Date(Date.now()+180000).toISOString()});
  }
  const mattState=states.find((s:any)=>s.agent_id==="matt");
@@ -368,41 +348,40 @@ async function runCharacterBrain():Promise<any>{
 async function runTeamMeeting():Promise<any>{
  if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};
  const last=await setting("last_team_meeting_at","");
- if(last&&Date.now()-Date.parse(last)<5*60*1000)return {skipped:true,reason:"meeting_interval_not_reached"};
- await setSetting("last_team_meeting_at",now());
- const [agents,tasks,activity,messages,opportunities]=await Promise.all([
+ if(last&&Date.now()-Date.parse(last)<4.5*60*1000)return {skipped:true,reason:"meeting_interval_not_reached"};
+ const startedAt=now(),nextBoundary=(Math.floor(Date.now()/300000)+1)*300000,nextMeetingAt=new Date(nextBoundary).toISOString();
+ const [agents,tasks,activity,messages,opportunities,profiles,memory]=await Promise.all([
   db("tonkas_agents?select=id,name,role,department,status,current_task"),
   db("tonkas_tasks?select=id,title,description,assigned_to,status,priority,result&status=in.(queued,running,completed,blocked,needs_review)&order=updated_at.desc&limit=35"),
   db("tonkas_activity?select=kind,actor,message,created_at&order=created_at.desc&limit=18"),
-  db("tonkas_messages?select=sender_id,recipient_id,content,created_at&order=created_at.desc&limit=25"),
-  db("tonkas_opportunities?select=id,title,problem,buyer,buying_signal,evidence_level,source_url,score,status&status=in.(new,researching,validated,owner_review)&order=discovered_at.desc&limit=12")
+  db("tonkas_messages?select=sender_id,recipient_id,content,created_at&order=created_at.desc&limit=30"),
+  db("tonkas_opportunities?select=id,title,problem,buyer,buying_signal,evidence_level,source_url,score,status&status=in.(new,researching,validated,owner_review)&order=discovered_at.desc&limit=12"),
+  db("tonkas_agent_profiles?select=agent_id,specialty,mission,responsibilities,procedure,quality_bar,guardrails,procedure_version"),
+  db("tonkas_agent_memory?select=agent_id,memory_type,content,created_at&order=created_at.desc&limit=30")
  ]);
- const system="You are Matt chairing the Tonkas Town executive team meeting. This is a real operating meeting, not roleplay. Review each agent's actual workload, deliverables, blockers, recent messages, and the latest customer-opportunity evidence. Ivy is permanently dedicated to the public customer-demand scout; never assign her unrelated product, telemetry, or operations work. Only assign Ivy a follow-up that directly improves public demand discovery or evidence validation. Identify what changed since the previous meeting, challenge weak assumptions, choose the next 1-3 highest-value internal actions, assign each to a suitable specialist, and state measurable completion criteria. Prefer HookEngine as the active business; use Venture Studio only when evidence supports it. Never assign SMP OPS KIT. Do not invent metrics, customer quotes, research, completed work, or decisions already made. If there is no meaningful new information, say so and set focused follow-ups rather than creating busywork. All tasks are internal drafts/research only. No contacting customers, sending outreach, publishing, purchases, spending, or account changes. Return JSON only: {\"meeting_title\":\"...\",\"summary\":\"...\",\"decisions\":[{\"decision\":\"...\",\"owner\":\"agent id\",\"priority\":\"high|normal|low\",\"success_criteria\":\"...\",\"due_minutes\":number}],\"messages\":[{\"to\":\"agent id or all\",\"content\":\"...\"}]}";
- const generated=await modelWithFallback(system,JSON.stringify({company_goal:await setting("company_goal",""),agents,tasks,recent_activity:activity,recent_messages:messages,customer_opportunities:opportunities,meeting_time:now()}),false,false);
- const data=parse(generated.content),decisions=Array.isArray(data.decisions)?data.decisions.slice(0,3):[];
- const summary=String(data.summary||"Team reviewed current work and agreed follow-ups.").slice(0,5000);
- const attendees=(agents||[]).map((a:any)=>a.id);
- const rows=await db("tonkas_meetings",{method:"POST",body:{summary,decisions,attendees,provider:generated.provider,started_at:now(),next_meeting_at:new Date(Date.now()+5*60*1000).toISOString()},prefer:"return=representation"});
- const meetingId=rows?.[0]?.id||null;
- await log("meeting.completed","Matt",summary,{meeting_id:meetingId,provider:generated.provider,decisions:decisions.length,attendees});
- await message("meetings","matt","TEAM MEETING · "+String(data.meeting_title||"5-minute operating review")+"\n"+summary,"all");
- for(const m of (Array.isArray(data.messages)?data.messages:[]).slice(0,5)){
-  const to=AGENT_IDS.has(String(m.to))?String(m.to):"all";
-  await message("meetings","matt",String(m.content||"").slice(0,1800),to);
- }
+ const system="You are Matt chairing a real Tonkas Town operating meeting. Use each agent saved specialist profile and versioned operating procedure as the source of their responsibilities. Review real workload, completed deliverables, blockers, messages, prior institutional memory, and customer evidence. Ivy is permanently dedicated to public customer-demand and competitor-feedback research; never assign her unrelated work. Focus HookEngine first; Venture Studio only when evidence supports it. SMP OPS KIT is excluded. The meeting record must be useful later: provide a clear title, agenda, structured discussion, conclusions, unresolved questions, and decisions with one accountable owner, measurable success criteria and due time. Discussion must synthesize supplied evidence and agent work, not invent dialogue or opinions attributed to agents. State when information is missing. If there is no material progress, say so and agree a small useful follow-up rather than manufacturing activity. All work is internal only. No customer contact, outreach, publishing, purchases, spending, or account changes. Return JSON only: {\"meeting_title\":\"...\",\"summary\":\"...\",\"agenda\":[\"...\"],\"discussion\":[{\"topic\":\"...\",\"key_points\":[\"...\"],\"evidence\":[\"...\"],\"conclusion\":\"...\",\"open_questions\":[\"...\"]}],\"decisions\":[{\"decision\":\"...\",\"owner\":\"agent id\",\"priority\":\"high|normal|low\",\"success_criteria\":\"...\",\"due_minutes\":number}],\"messages\":[{\"to\":\"agent id or all\",\"content\":\"...\"}]}";
+ const previous=(await db("tonkas_meetings?select=summary&order=started_at.desc&limit=1"))?.[0]?.summary||null;
+ const generated=await modelWithFallback(system,JSON.stringify({company_goal:await setting("company_goal",""),agents,tasks,recent_activity:activity,recent_messages:messages,customer_opportunities:opportunities,specialist_profiles:profiles,institutional_memory:memory,previous_meeting_summary:previous,meeting_time:startedAt}),false,false);
+ const data=parse(generated.content),summary=String(data.summary||"").trim().slice(0,5000);
+ if(!summary)throw new Error("Meeting model returned no summary; meeting was not recorded.");
+ const decisions=Array.isArray(data.decisions)?data.decisions.slice(0,4):[];
+ const agenda=Array.isArray(data.agenda)?data.agenda.slice(0,10).map((v:any)=>String(v).slice(0,500)):[];
+ const discussion=Array.isArray(data.discussion)?data.discussion.slice(0,12).map((v:any)=>({topic:String(v.topic||"").slice(0,300),key_points:Array.isArray(v.key_points)?v.key_points.slice(0,8).map((x:any)=>String(x).slice(0,1000)):[],evidence:Array.isArray(v.evidence)?v.evidence.slice(0,8).map((x:any)=>String(x).slice(0,1000)):[],conclusion:String(v.conclusion||"").slice(0,1000),open_questions:Array.isArray(v.open_questions)?v.open_questions.slice(0,8).map((x:any)=>String(x).slice(0,500)):[]})):[];
+ const attendees=(agents||[]).map((a:any)=>a.id),actionItems=decisions.map((d:any)=>({decision:String(d.decision||"").slice(0,500),owner:String(d.owner||""),priority:String(d.priority||"normal"),success_criteria:String(d.success_criteria||"").slice(0,1200),due_minutes:Math.max(5,Math.min(1440,Number(d.due_minutes)||30)),task_id:null}));
+ const rows=await db("tonkas_meetings",{method:"POST",body:{title:String(data.meeting_title||"Executive operating review").slice(0,180),summary,agenda,discussion,decisions,action_items:actionItems,attendees,provider:generated.provider,started_at:startedAt,next_meeting_at:nextMeetingAt,ended_at:now(),duration_seconds:Math.max(0,Math.round((Date.now()-Date.parse(startedAt))/1000))},prefer:"return=representation"});
+ const meetingId=rows?.[0]?.id||null;if(!meetingId)throw new Error("Meeting record insert returned no id.");
+ await setSetting("last_team_meeting_at",startedAt);
+ await log("meeting.completed","Matt",summary,{meeting_id:meetingId,provider:generated.provider,decisions:decisions.length,attendees,discussion_topics:discussion.length});
+ await message("meetings","matt","TEAM MEETING · "+String(data.meeting_title||"Executive operating review")+"\n"+summary,"all");
+ for(const m of (Array.isArray(data.messages)?data.messages:[]).slice(0,8)){const to=AGENT_IDS.has(String(m.to))?String(m.to):"all";await message("meetings","matt",String(m.content||"").slice(0,1800),to);}
  let assigned=0;
- for(const d of decisions){
-  const owner=String(d.owner||"");
-  if(!AGENT_IDS.has(owner)||owner==="matt")continue;
-  const title=String(d.decision||"").slice(0,160);
-  if(owner==="ivy"&&!/(demand|buying|customer|opportunity|public.*signal|scout)/i.test(title))continue;
-  if(!title)continue;
-  const open=await db("tonkas_tasks?select=id&assigned_to=eq."+encodeURIComponent(owner)+"&title=eq."+encodeURIComponent(title)+"&status=in.(queued,running)&limit=1");
-  if(open.length)continue;
-  const desc="BUSINESS_ID: portfolio\nCreated from the 5-minute Tonkas team meeting.\nObjective: "+title+"\nSuccess criteria: "+String(d.success_criteria||"Deliver a concise evidence-backed internal recommendation.").slice(0,1200)+"\nTarget: "+Math.max(5,Math.min(1440,Number(d.due_minutes)||30))+" minutes. Internal work only; no external contact or publishing.";
-  await addTask(title,desc,owner,"matt",String(d.priority||"normal"),AGENTS.find(a=>a.id===owner)?.department||null);assigned++;
+ for(let i=0;i<decisions.length;i++){const d=decisions[i],owner=String(d.owner||"");if(!AGENT_IDS.has(owner)||owner==="matt")continue;const title=String(d.decision||"").slice(0,160);if(owner==="ivy"&&!/(demand|buying|customer|opportunity|public.*signal|scout|competitor|review)/i.test(title))continue;if(!title)continue;
+  const open=await db("tonkas_tasks?select=id&assigned_to=eq."+encodeURIComponent(owner)+"&title=eq."+encodeURIComponent(title)+"&status=in.(queued,running)&limit=1");if(open.length){actionItems[i].task_id=open[0].id;continue;}
+  const profile=profiles.find((p:any)=>p.agent_id===owner),desc="BUSINESS_ID: "+(owner==="dennis"?"venture_studio":"hookengine")+"\nCreated from meeting "+meetingId+".\nObjective: "+title+"\nSuccess criteria: "+String(d.success_criteria||"Deliver an evidence-backed internal recommendation.").slice(0,1200)+"\nTarget: "+Math.max(5,Math.min(1440,Number(d.due_minutes)||30))+" minutes. Use your saved specialist procedure and persistent memory. Internal work only; no external contact or publishing.";
+  actionItems[i].task_id=await addTask(title,desc,owner,"matt",String(d.priority||"normal"),profile?.agent_id==="dennis"?"research":(agents.find((a:any)=>a.id===owner)?.department||null));assigned++;
  }
- return {meeting_id:meetingId,provider:generated.provider,decisions:decisions.length,tasks_created:assigned,summary};
+ await db("tonkas_meetings?id=eq."+encodeURIComponent(meetingId),{method:"PATCH",body:{action_items:actionItems},prefer:"return=minimal"});
+ return {meeting_id:meetingId,title:String(data.meeting_title||"Executive operating review"),provider:generated.provider,decisions:decisions.length,tasks_created:assigned,discussion_topics:discussion.length,summary,next_meeting_at:nextMeetingAt};
 }
 async function runIvyOpportunityScout():Promise<any>{
  const last=await setting("last_ivy_scout_at","");
