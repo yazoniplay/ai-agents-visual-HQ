@@ -54,12 +54,14 @@ async function snapshot():Promise<any>{
   db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),
   db("tonkas_messages?select=*&order=created_at.desc&limit=100"),
   db("tonkas_activity?select=*&order=created_at.desc&limit=100"),
-  db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now()))
+  db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now())),
+  db("tonkas_meetings?select=*&order=started_at.desc&limit=12"),
+  db("tonkas_opportunities?select=*&order=discovered_at.desc&limit=30")
  ]);
- const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse(),character_brains=r[5]||[];
+ const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse(),character_brains=r[5]||[],meetings=r[6]||[],opportunities=r[7]||[];
  const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true";
  const quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null;
- return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
+ return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,meetings,opportunities,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
 }
 
 function parse(raw:string):any{
@@ -348,7 +350,79 @@ async function runCharacterBrain():Promise<any>{
  await log("character.brain","Tonkas AI","Updated live movement, gaze and dialogue for "+states.length+" characters.",{provider:generated.provider,speaking:utterances.map((s:any)=>s.agent_id)});
  return {updated:states.length,provider:generated.provider,speaking:utterances.length};
 }
-async function workerCycle():Promise<any>{if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};const p=providers();if(!p.gemini&&!p.ollama)return {skipped:true,reason:"no_model_provider"};let brain:any;try{brain=await runCharacterBrain();}catch(e){brain={error:String(e).slice(0,500)};await log("character.brain.error","Tonkas AI","Character brain update failed.",{error:String(e).slice(0,500)});}const work=await runOneTask();return {brain,work};}
+async function runTeamMeeting():Promise<any>{
+ const last=await setting("last_team_meeting_at","");
+ if(last&&Date.now()-Date.parse(last)<5*60*1000)return {skipped:true,reason:"meeting_interval_not_reached"};
+ await setSetting("last_team_meeting_at",now());
+ const [agents,tasks,activity,messages,opportunities]=await Promise.all([
+  db("tonkas_agents?select=id,name,role,department,status,current_task"),
+  db("tonkas_tasks?select=id,title,description,assigned_to,status,priority,result&status=in.(queued,running,completed,blocked,needs_review)&order=updated_at.desc&limit=35"),
+  db("tonkas_activity?select=kind,actor,message,created_at&order=created_at.desc&limit=18"),
+  db("tonkas_messages?select=sender_id,recipient_id,content,created_at&order=created_at.desc&limit=25"),
+  db("tonkas_opportunities?select=id,title,problem,buyer,buying_signal,evidence_level,source_url,score,status&status=in.(new,researching,validated,owner_review)&order=discovered_at.desc&limit=12")
+ ]);
+ const system="You are Matt chairing the Tonkas Town executive team meeting. This is a real operating meeting, not roleplay. Review each agent's actual workload, deliverables, blockers, recent messages, and the latest customer-opportunity evidence. Identify what changed since the previous meeting, challenge weak assumptions, choose the next 1-3 highest-value internal actions, assign each to a suitable specialist, and state measurable completion criteria. Prefer HookEngine as the active business; use Venture Studio only when evidence supports it. Never assign SMP OPS KIT. Do not invent metrics, customer quotes, research, completed work, or decisions already made. If there is no meaningful new information, say so and set focused follow-ups rather than creating busywork. All tasks are internal drafts/research only. No contacting customers, sending outreach, publishing, purchases, spending, or account changes. Return JSON only: {\"meeting_title\":\"...\",\"summary\":\"...\",\"decisions\":[{\"decision\":\"...\",\"owner\":\"agent id\",\"priority\":\"high|normal|low\",\"success_criteria\":\"...\",\"due_minutes\":number}],\"messages\":[{\"to\":\"agent id or all\",\"content\":\"...\"}]}";
+ const generated=await modelWithFallback(system,JSON.stringify({company_goal:await setting("company_goal",""),agents,tasks,recent_activity:activity,recent_messages:messages,customer_opportunities:opportunities,meeting_time:now()}),false,false);
+ const data=parse(generated.content),decisions=Array.isArray(data.decisions)?data.decisions.slice(0,3):[];
+ const summary=String(data.summary||"Team reviewed current work and agreed follow-ups.").slice(0,5000);
+ const attendees=(agents||[]).map((a:any)=>a.id);
+ const rows=await db("tonkas_meetings",{method:"POST",body:{summary,decisions,attendees,provider:generated.provider,started_at:now(),next_meeting_at:new Date(Date.now()+5*60*1000).toISOString()},prefer:"return=representation"});
+ const meetingId=rows?.[0]?.id||null;
+ await log("meeting.completed","Matt",summary,{meeting_id:meetingId,provider:generated.provider,decisions:decisions.length,attendees});
+ await message("meetings","matt","TEAM MEETING · "+String(data.meeting_title||"5-minute operating review")+"\n"+summary,"all");
+ for(const m of (Array.isArray(data.messages)?data.messages:[]).slice(0,5)){
+  const to=AGENT_IDS.has(String(m.to))?String(m.to):"all";
+  await message("meetings","matt",String(m.content||"").slice(0,1800),to);
+ }
+ let assigned=0;
+ for(const d of decisions){
+  const owner=String(d.owner||"");
+  if(!AGENT_IDS.has(owner)||owner==="matt")continue;
+  const title=String(d.decision||"").slice(0,160);
+  if(!title)continue;
+  const open=await db("tonkas_tasks?select=id&assigned_to=eq."+encodeURIComponent(owner)+"&title=eq."+encodeURIComponent(title)+"&status=in.(queued,running)&limit=1");
+  if(open.length)continue;
+  const desc="BUSINESS_ID: portfolio\nCreated from the 5-minute Tonkas team meeting.\nObjective: "+title+"\nSuccess criteria: "+String(d.success_criteria||"Deliver a concise evidence-backed internal recommendation.").slice(0,1200)+"\nTarget: "+Math.max(5,Math.min(1440,Number(d.due_minutes)||30))+" minutes. Internal work only; no external contact or publishing.";
+  await addTask(title,desc,owner,"matt",String(d.priority||"normal"),AGENTS.find(a=>a.id===owner)?.department||null);assigned++;
+ }
+ return {meeting_id:meetingId,provider:generated.provider,decisions:decisions.length,tasks_created:assigned,summary};
+}
+async function runIvyOpportunityScout():Promise<any>{
+ const last=await setting("last_ivy_scout_at","");
+ if(last&&Date.now()-Date.parse(last)<10*60*1000)return {skipped:true,reason:"scout_interval_not_reached"};
+ const p=providers();if(!p.gemini)return {skipped:true,reason:"live_search_requires_gemini"};
+ await setSetting("last_ivy_scout_at",now());
+ await setAgentState("ivy","researching",HOME_POINTS.research,null);
+ const [existing,goal]=await Promise.all([
+  db("tonkas_opportunities?select=title,problem,source_url,score,status&order=discovered_at.desc&limit=35"),
+  setting("company_goal","")
+ ]);
+ const system="You are Ivy, Tonkas Town's continuous customer-demand scout. Use live Google Search and source pages to find real public posts, reviews, forum discussions, issue threads and community requests where people express a concrete unmet need or buying intent. Search for language such as 'I wish this existed', 'I'd pay for this', 'is there a tool that', 'looking for a solution', 'any alternative to', 'we need a way to', and explicit willingness to pay. Prioritize recent first-person evidence from Reddit, Indie Hackers, product reviews, GitHub issues, specialist forums and public communities. Look for recurring problems that could support HookEngine or a viable new online product. Do not scrape private spaces, infer private identities, contact anyone, send DMs, or claim the poster is a qualified lead. Do not fabricate quotes, sources, URLs, dates, counts or willingness-to-pay. A quote_excerpt must be an exact short excerpt visible at the cited source, otherwise null. Distinguish a single anecdote from repeated evidence. Ignore generic feature chatter without a clear problem. Return JSON only: {\"findings\":[{\"title\":\"short opportunity\",\"problem\":\"specific unmet need\",\"buyer\":\"likely buyer type\",\"buying_signal\":\"what the public post actually signals\",\"evidence_level\":\"anecdotal|repeated|strong\",\"source_url\":\"direct public URL\",\"source_platform\":\"platform\",\"quote_excerpt\":null,\"estimated_wtp\":\"only if explicitly evidenced, otherwise unknown\",\"score\":1,\"research_notes\":\"what is verified and what remains uncertain\"}]} Return at most 4 findings. Prefer quality over quantity.";
+ const prompt=JSON.stringify({company_goal:goal,portfolio:["HookEngine: browser extension that turns articles, selected text and YouTube into social drafts","Venture Studio: validate online business opportunities"],recent_findings:existing,search_instruction:"Search recent public demand signals and explicit willingness-to-pay language. Avoid repeating existing findings."});
+ const generated=await modelWithFallback(system,prompt,true,false);
+ if(generated.provider!=="gemini"){await log("ivy.scout.skipped","Ivy","Live customer discovery skipped because Gemini live search was unavailable.",{provider:generated.provider});return {skipped:true,reason:"live_search_unavailable"};}
+ const data=parse(generated.content),findings=Array.isArray(data.findings)?data.findings.slice(0,4):[];
+ let saved=0,qualified=0;
+ for(const f of findings){
+  const url=String(f.source_url||"").trim();
+  if(!/^https:\/\//i.test(url))continue;
+  const duplicate=await db("tonkas_opportunities?select=id&source_url=eq."+encodeURIComponent(url)+"&limit=1");
+  if(duplicate.length){await db("tonkas_opportunities?id=eq."+encodeURIComponent(duplicate[0].id),{method:"PATCH",body:{last_seen_at:now()},prefer:"return=minimal"});continue;}
+  const score=Math.max(1,Math.min(10,Math.round(Number(f.score)||1)));
+  const evidence=["anecdotal","repeated","strong"].includes(String(f.evidence_level))?String(f.evidence_level):"unverified";
+  const body={title:String(f.title||"Unclassified demand signal").slice(0,180),problem:String(f.problem||"").slice(0,1800),buyer:String(f.buyer||"").slice(0,500),buying_signal:String(f.buying_signal||"").slice(0,1000),evidence_level:evidence,source_url:url,source_platform:String(f.source_platform||"public web").slice(0,80),quote_excerpt:f.quote_excerpt?String(f.quote_excerpt).slice(0,350):null,estimated_wtp:String(f.estimated_wtp||"Unknown").slice(0,300),score,status:score>=7?"researching":"new",research_notes:String(f.research_notes||"").slice(0,2500),last_seen_at:now()};
+  await db("tonkas_opportunities",{method:"POST",body,prefer:"return=minimal"});saved++;
+  if(score>=7&&qualified<2){
+   const title="Validate demand: "+body.title.slice(0,125);
+   const open=await db("tonkas_tasks?select=id&title=eq."+encodeURIComponent(title)+"&status=in.(queued,running)&limit=1");
+   if(!open.length){await addTask(title,"BUSINESS_ID: venture_studio\nWEB_RESEARCH_REQUIRED\nIvy found a public demand signal. Verify the source, search for independent corroboration, identify the buyer and competing solutions, assess urgency and willingness to pay, and recommend a small validation test. Source: "+url+"\nSignal: "+body.buying_signal+"\nProblem: "+body.problem+"\nDo not contact the poster or claim they are a lead.", "dennis","ivy","high","research");qualified++;}
+  }
+ }
+ await setAgentState("ivy","idle",HOME_POINTS.research,null);
+ await log("ivy.scout.completed","Ivy","Scanned public customer discussions for unmet needs and buying-intent signals.",{provider:generated.provider,results:findings.length,saved,qualified_tasks:qualified});
+ return {provider:generated.provider,results:findings.length,saved,qualified_tasks:qualified};
+}
+async function workerCycle():Promise<any>{if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};const p=providers();if(!p.gemini&&!p.ollama)return {skipped:true,reason:"no_model_provider"};let brain:any;try{brain=await runCharacterBrain();}catch(e){brain={error:String(e).slice(0,500)};await log("character.brain.error","Tonkas AI","Character brain update failed.",{error:String(e).slice(0,500)});}let meeting:any;try{meeting=await runTeamMeeting();}catch(e){meeting={error:String(e).slice(0,500)};await log("meeting.error","Matt","5-minute team meeting failed.",{error:String(e).slice(0,500)});}let scout:any;try{scout=await runIvyOpportunityScout();}catch(e){scout={error:String(e).slice(0,500)};await log("ivy.scout.error","Ivy","Customer opportunity scan failed.",{error:String(e).slice(0,500)});}const work=await runOneTask();return {brain,meeting,scout,work};}
 async function command(c:any):Promise<any>{const kind=c.type;if(kind==="characters.position"){const positions=Array.isArray(c.positions)?c.positions.slice(0,10):[];for(const p of positions){const id=String(p.id||"");if(!AGENT_IDS.has(id))continue;const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))continue;await db("tonkas_agents?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),updated_at:now()},prefer:"return=minimal"});}return {ok:true,synced:positions.length};}if(kind==="characters.brain")return {ok:true,result:await runCharacterBrain()};if(kind==="autonomy.start"){
  const p=providers();if(!p.gemini&&!p.ollama)throw new Error("GEMINI_API_KEY or OLLAMA_API_KEY is missing from Supabase Function Secrets.");
  const blocked=await db("tonkas_tasks?select=id,assigned_to,result&status=eq.blocked");
