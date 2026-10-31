@@ -821,8 +821,9 @@ function render(s){
  const waiting=(s.approvals||[]).length;
  setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
  const providers=s.provider_status||{};
- const providerNames=["openai","anthropic","gemini"].filter(k=>providers[k]).join(", ")||"none configured";
- let html='<div class="hql-status"><div class="hql-row"><b>Runtime connected</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTONOMY ON":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">Models configured: '+esc(providerNames)+' · '+esc(s.server_time||"")+'</div></div>';
+ const providerNames=["ashnaai","gemini","groq","ollama"].filter(k=>providers[k]).join(", ")||"none configured";
+ const modelInfo="Matt: "+(providers.matt_model||"claude-opus-5")+" · lightweight: "+(providers.lightweight||"groq");
+ let html='<div class="hql-status"><div class="hql-row"><b>Runtime connected</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTONOMY ON":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">Providers configured: '+esc(providerNames)+'</div><div class="hql-muted">'+esc(modelInfo)+' · '+esc(s.server_time||"")+'</div></div>';
  html+='<div class="hql-card"><div class="hql-section">MATT // CEO</div><div class="hql-row"><button class="hql-btn" data-action="'+(s.autonomy_enabled?"autonomy.stop":"autonomy.start")+'">'+(s.autonomy_enabled?"PAUSE AUTONOMY":"START AUTONOMY")+'</button><button class="hql-btn" data-action="matt.run">RUN MATT NOW</button></div><div class="hql-muted">Matt plans and delegates internal work. External actions stay approval-gated.</div></div>';
  html+='<div class="hql-card"><div class="hql-section">COMPANY GOAL</div><textarea id="hql-goal" class="hql-input" rows="3">'+esc(s.company_goal||"")+'</textarea><button class="hql-btn" data-action="goal.save">UPDATE GOAL</button></div>';
  html+='<div class="hql-card"><div class="hql-section">MESSAGE MATT</div><textarea id="hql-message" class="hql-input" rows="2" placeholder="Give Matt a goal or ask for a status update..."></textarea><button class="hql-btn" data-action="message.send">SEND TO MATT</button></div>';
