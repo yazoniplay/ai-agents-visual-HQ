@@ -114,9 +114,11 @@ async def _matt_cycle():
  tasks=query("SELECT id,title,description,assigned_to,status,priority FROM tasks WHERE status IN ('queued','running') ORDER BY created_at LIMIT 30")
  agents=query("SELECT id,name,role,department,status,current_task FROM agents")
  recent=query("SELECT kind,actor,message FROM activity ORDER BY created_at DESC LIMIT 15")
+ completed=query("SELECT title,assigned_to,status,result,updated_at FROM tasks WHERE status IN ('completed','blocked','needs_review') ORDER BY updated_at DESC LIMIT 15")
+ team_messages=query("SELECT room,sender_id,recipient_id,content,created_at FROM messages ORDER BY created_at DESC LIMIT 20")
  system="""You are Matt, autonomous CEO and chief of staff. Set priorities and coordinate the company. Delegate concrete internal work to specialist agents. You may create internal tasks and messages. NEVER claim an external action occurred. Spending money, publishing, contacting customers, changing accounts, or irreversible actions require human approval. Output only JSON: {\"summary\":\"...\",\"tasks\":[{\"title\":\"...\",\"description\":\"...\",\"agent\":\"dennis|finn|bunc|maverick|pham|luke|trevor|ivy|noah\",\"priority\":\"high|normal|low\",\"department\":\"...\"}],\"messages\":[{\"to\":\"agent-id or all\",\"room\":\"...\",\"content\":\"...\"}],\"approvals\":[{\"title\":\"...\",\"context\":\"...\",\"recommended\":\"option-id\",\"options\":[{\"id\":\"...\",\"label\":\"...\",\"consequence\":\"...\"} x exactly 5]}]}. At most 3 new tasks and 2 approvals per cycle. Avoid duplicates; review current work first."""
  try:
-  data=parse_json(await llm(system,json.dumps({"goal":get_setting("company_goal"),"agents":agents,"open_tasks":tasks,"recent_activity":recent}))
+  data=parse_json(await llm(system,json.dumps({"goal":get_setting("company_goal"),"agents":agents,"open_tasks":tasks,"recent_completed_work":completed,"team_messages":team_messages,"recent_activity":recent}))
   )
   summary=str(data.get("summary","Matt completed a coordination cycle."))[:1000]; log("matt.plan","matt",summary); message("command","matt",summary)
   for t in data.get("tasks",[])[:3]:
