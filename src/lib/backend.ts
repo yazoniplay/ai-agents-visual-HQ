@@ -128,7 +128,7 @@ function normalizeSnapshot(raw: any): HQSnapshot {
   }));
   const departments = departmentIds.map((id) => ({
     id,
-    taskCount: tasks.filter((task) => task.departmentId === id).length,
+    taskCount: tasks.filter((task: HQSnapshot["tasks"][number]) => task.departmentId === id).length,
     activeCount: agents.filter((agent) => agent.departmentId === id && ["working", "planning", "reviewing", "meeting"].includes(agent.status)).length,
   }));
   return {
