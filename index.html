@@ -636,54 +636,6 @@ document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const head=(t,sub)=>`<div class="ph"><button class="close" type="button" data-close>BACK TO TOWN · ESC</button><h1>${t}</h1><p>${sub}</p></div>`;
 const card=(k,n,s,plain)=>`<div class="card"><div class="k">${k}</div><div class="n${plain?" plain":""}">${n}</div>${s?`<div class="s">${s}</div>`:""}</div>`;
-const IDEAS=[
- ["2026-05-11-candle-niche-occupational-professional-pride-candles","$600 – $2,400","$20 – $60","Bunc, after Trevor clears the Printify gate","5/10"],
- ["2026-05-12-t-shirt-niche-skilled-trades-occupation-humor-slogan-bank","$500 – $1,800","$15 – $45","Bunc, slogan bank","6/10"],
- ["Agentic ops observability implementation","$1,000 – $5,000","$0 – $30","needs new agent (who will actually do this)","5/10"],
- ["AI receptionist setup for home services","$1,500 – $6,000","$50 – $120","needs new agent (who will actually do this)","4/10"],
- ["Local service one-day website refresh","$800 – $3,000 (with reasoning)","$0 – $40 (with breakdown)","needs new agent (who will actually do this)","6/10 (and why — what data would change your number)"],
- ["2026-05-20-agent-consulting-calls","$1,000 – $4,000","$0 – $20","Matt, with Trevor on calls","5/10"],
- ["2026-05-20-build-guide-pro-upsell","$300 – $1,200","$0 – $25","Maverick","6/10"],
- ["2026-05-20-agent-customer-service-as-saas","$2,000 – $9,000","$100 – $400","needs new agent (who will actually do this)","3/10"]
-];
-const TASKS=[
- ["done","research","8 actionable Printify niches with competitor data + keyword targets — feeds Bunc's first 3 physical product fires tomorrow morning","produced /root/research/ideas/2026-05-11-printify-tshirt-candle-niches.md, verdict fast-track"],
- ["rej","research","Slogan bank unlocks autonomous iteration — Bunc can ship 20+ designs from one Trevor approval. No more per-shirt phone calls.","Worker subprocess died during API restart cycle (EISDIR crash + credits endpoint unreachable → dispatcher fail-safe). Trajectory shows last activity 25m ago."],
- ["rej","research","Slogan bank unlocks autonomous iteration in tradesman niche","Worker process died before writing trajectory. Likely Codex/OR transient issue or dispatcher subprocess loss. Retrying with fresh task."],
- ["done","research","Competitor teardown for AI receptionist offers in home services","produced /root/research/ideas/2026-05-14-ai-receptionist.md"],
- ["done","research","Keyword targets for pride-candle niche","produced /root/research/ideas/2026-05-11-candle-keywords.md"],
- ["done","research","Gumroad template pricing benchmarks","produced /root/research/ideas/2026-05-15-gumroad-pricing.md"],
- ["done","research","Landing-page service: first three outreach lists","produced /root/research/ideas/2026-05-16-outreach.md"],
- ["rej","research","Build-guide pro upsell: audience sizing","Worker exceeded budget cap before producing output."],
- ["done","research","Fiverr gig titles that convert for agent setup","produced /root/research/ideas/2026-05-18-fiverr-titles.md"],
- ["done","research","Home-service website refresh: pricing ladder","produced /root/research/ideas/2026-05-19-refresh-ladder.md"],
- ["done","research","Observability tooling comparison for agent ops","produced /root/research/ideas/2026-05-20-observability.md"],
- ["rej","research","Consulting-calls funnel teardown","Worker died on API restart. Retrying."],
- ["done","research","Etsy vs Printify margin check, candle niche","produced /root/research/ideas/2026-05-20-margins.md"],
- ["done","research","SaaS wrapper for agent customer service: build cost","produced /root/research/ideas/2026-05-20-cs-saas.md"],
- ["done","research","Trade-humor slogan sources and licence check","produced /root/research/ideas/2026-05-20-slogans.md"]
-];
-function rev30(){
-  const out=[];let sa=0,sb=0;const A=759.76,B=1447.12;
-  const wa=[],wb=[];let r=3;const rr=()=>{r=(r*48271)%2147483647;return r/2147483647;};
-  for(let i=0;i<30;i++){wa.push(rr()>.55?rr()*3+.3:rr()*.4);wb.push(rr()>.45?rr()*3.2+.2:rr()*.3);}
-  const ta=wa.reduce((a,b)=>a+b),tb=wb.reduce((a,b)=>a+b);
-  for(let i=0;i<30;i++)out.push([wa[i]/ta*A,wb[i]/tb*B]);
-  return out;
-}
-function revenueChart(){
-  const d=rev30(),max=Math.max(...d.map(x=>x[0]+x[1])),top=Math.ceil(max/50)*50;
-  const w=640,h=260,l=44,b=26,t=10,cw=(w-l-8)/30;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Daily revenue, last 30 days, Stripe and Gumroad stacked">`;
-  for(let i=0;i<=4;i++){const v=top*i/4,y=h-b-(h-b-t)*i/4;s+=`<line x1="${l}" x2="${w-8}" y1="${y}" y2="${y}" stroke="#e3b988" stroke-dasharray="2 4"/><text x="${l-6}" y="${y+3}" text-anchor="end" font-family="Space Mono" font-size="9" fill="#8a5a40">$${Math.round(v)}</text>`;}
-  d.forEach((p,i)=>{
-    const x=l+i*cw+2,bw=cw-4,sc=(h-b-t)/top;
-    const hb=p[1]*sc,ha=p[0]*sc;
-    s+=`<rect x="${x}" y="${h-b-hb}" width="${bw}" height="${hb}" fill="#5cc8e8"/><rect x="${x}" y="${h-b-hb-ha}" width="${bw}" height="${ha}" fill="#ef7fb0"/>`;
-    if(i%5===0||i===29)s+=`<text x="${x+bw/2}" y="${h-8}" text-anchor="middle" font-family="Space Mono" font-size="9" fill="#8a5a40">${i===29?"today":"-"+(29-i)+"d"}</text>`;
-  });
-  return s+"</svg>";
-}
 const P={
  command:()=>head("Command Center","Live company operations")+'<div class="pb"><div class="brief">Live agent activity, tasks, approvals, and meeting records are available in Live HQ.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
  research:()=>head("Research Lab","Customer evidence and opportunity research")+'<div class="pb"><div class="brief">Review saved public demand signals, research deliverables, and validation work in Live HQ.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
