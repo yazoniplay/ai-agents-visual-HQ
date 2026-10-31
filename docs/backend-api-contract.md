@@ -10,6 +10,8 @@ The village UI is a frontend. It does not run agents itself. Configure `VITE_HQ_
 
 ## Snapshot shape
 
+Every approval must include exactly five answer options. Each option needs an ID, a short label, and a plain-language consequence. Include the recommended answer separately.
+
 ```json
 {
   "updatedAt": "2026-10-31T12:00:00Z",
@@ -18,7 +20,8 @@ The village UI is a frontend. It does not run agents itself. Configure `VITE_HQ_
     "currency": "EUR",
     "budgetAvailable": 2500,
     "revenueToDate": 840,
-    "monthlySpend": 125
+    "monthlySpend": 125,
+    "platformRevenue": { "Stripe": 520, "Etsy": 140, "Gumroad": 95, "Fiverr": 85 }
   },
   "agents": [
     {
