@@ -1,47 +1,34 @@
-# AI HQ — Visual Headquarters
+# Tonkas Town — Autonomous AI HQ
 
-A game-inspired visual control center for a future autonomous AI workforce.
+Tonkas Town is a pixel-art control center for a small AI-operated online business.
 
-## Phase 1: Game world
-- Fixed, interconnected 10-room headquarters map.
-- Top-down spaceship-style environment.
-- Clickable departments and character inspection.
-- Room directory, search, labels and zoom controls.
-- Responsive layout and reduced-motion support.
+## Live architecture
 
-## Phase 2: Operations interface
-- Department workspaces with Overview, Tasks, Chat and History tabs.
-- Agent personnel profiles with role, department and responsibility.
-- Local task queue with add and status-cycle interactions.
-- Local department notes and a session activity journal.
-- Clear offline states and explicit labels distinguishing local preview actions from real agent execution.
+- **Dashboard:** GitHub Pages — `https://yazoniplay.github.io/ai-agents-visual-HQ/`
+- **Runtime:** Supabase Edge Function — `tonkas-hq`
+- **Persistence:** Supabase Postgres — project `ai-hive-db` (`vgbsthdvohazsfpgugmu`)
+- **Scheduling:** Supabase Cron, every five minutes
+- **Orchestrator:** Matt, autonomous CEO and Chief of Staff
+- **Specialists:** Dennis, Finn, Bunc, Maverick, Pham, Luke, Trevor, Ivy, and Noah
 
-## Important status
+## AI provider routing
 
-This remains a **frontend-only preview**. The ten character identities and roles are placeholders, not configured model-backed agents. Tasks, notes and journal entries are held in React state for the current page session only; they are not persisted to a server. No AI model is connected, no agent executes work, and no real-time meetings, cross-agent conversations, notifications or push delivery exist yet.
+- **Matt:** AshnaAI `claude-opus-5` — fixed model for planning, delegation, and coordination.
+- **Research:** Gemini for Dennis and Ivy.
+- **Marketing:** Gemini for Maverick.
+- **Other specialist work:** AshnaAI by default.
+- **Small / low-priority tasks:** Groq by default, with Ollama as an optional alternative.
 
-The next phase should establish the persistent backend and data contracts before connecting live agents. Do not treat preview interactions as real autonomous execution.
+No direct OpenAI or Anthropic API integrations are used. Read [the Supabase runtime guide](docs/autonomous-runtime.md) for the complete routing and secret configuration.
 
-## Run locally
+## What works
 
-Requires Node.js 20 or newer.
+Matt can plan, delegate internal work, read specialist reports, send internal messages, and ask the owner for a decision with exactly five options. Specialist agents can complete one queued internal task per five-minute cycle. Tasks, messages, approvals, agent status, and activity persist in Postgres. Autonomy is paused by default.
 
-```bash
-npm install
-npm run dev
-```
+## Not yet integrated
 
-## Build
+Browser research, email, social publishing, payments, Stripe, Gumroad, Fiverr, push notifications, and arbitrary code execution are not connected. Gemini research tasks currently generate internal research briefs; they do not browse the live web. Sample revenue figures in the original village artwork are not live data. Do not treat an agent's generated statement as proof of an external action.
 
-```bash
-npm run build
-npm run preview
-```
+## Setup
 
-## Stack
-
-- React + TypeScript
-- Vite
-- SVG world map
-- CSS interactions and animation
-- Lucide icons
+Read [the Supabase runtime guide](docs/autonomous-runtime.md). Add provider API keys as Supabase Edge Function secrets, connect the village using its owner token, and start autonomy manually. Never commit API keys or owner tokens.

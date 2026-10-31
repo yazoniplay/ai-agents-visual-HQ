@@ -1,0 +1,26 @@
+name: Supabase Runtime CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/runtime-ci.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/runtime-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  edge-function:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Tonkas HQ Edge Function
+        run: deno check supabase/functions/tonkas-hq/index.ts

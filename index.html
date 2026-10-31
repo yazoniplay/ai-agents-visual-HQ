@@ -357,8 +357,23 @@ const AG=[
  {n:"Pham",shirt:"#4a9a4a",hair:"#222",hat:"#e0c070",at:"C"},
  {n:"Finn",shirt:"#ececec",hair:"#c84a2a",at:"K"},
  {n:"Dennis",shirt:"#8a4aa0",hair:"#333",at:"K"},
- {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"K"}
+ {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"K"},
+ {n:"Matt",shirt:"#7b4aa8",hair:"#34223e",at:"A"},
+ {n:"Trevor",shirt:"#bd7a35",hair:"#49321e",at:"H"},
+ {n:"Ivy",shirt:"#d36b91",hair:"#4a2b2b",at:"C"},
+ {n:"Noah",shirt:"#3f8c78",hair:"#242424",at:"A"}
 ].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,wait:Math.random()*3,spd:13+Math.random()*5,ph:Math.random()*6}));
+window.__tonkasSetAgents=function(list){
+ const destinations={command:"A",research:"C",factory:"F",media:"Md",revenue:"R",war:"H"};
+ (list||[]).forEach(agent=>{
+  const node=destinations[agent.department]||"A";
+  let sprite=AG.find(a=>a.n===agent.name);
+  if(!sprite){sprite={n:agent.name,shirt:"#6f7d8a",hair:"#38291f",at:node,x:NODES[node][0],y:NODES[node][1],cur:node,prev:null,to:null,wait:999,spd:15,ph:0};AG.push(sprite);}
+  sprite.destination=node;
+  if(sprite.cur!==node){if(sprite.to!==node){sprite.to=node;sprite.wait=0;}}
+  else{sprite.to=null;sprite.wait=999;}
+ });
+};
 const me={x:318,y:126,face:1,ph:0,target:null,autoEnter:null};
 const pen=[];
 for(let i=0;i<14;i++)pen.push({k:"hen",x:20+rnd()*100,y:46+rnd()*40,tx:0,ty:0,t:rnd()*3});
@@ -459,9 +474,10 @@ function step(dt){
   for(const a of AG){
     if(a.to){
       const [tx,ty]=NODES[a.to],ex=tx-a.x,ey=ty-a.y,d=Math.hypot(ex,ey);
-      if(d<1.5){a.prev=a.cur;a.cur=a.to;a.to=null;a.wait=1+Math.random()*5;}
+      if(d<1.5){a.prev=a.cur;a.cur=a.to;a.to=null;a.wait=a.destination?999:1+Math.random()*5;}
       else{a.x+=ex/d*a.spd*dt;a.y+=ey/d*a.spd*dt;a.mv=true;}
-    }else{
+    }else if(a.destination&&a.cur===a.destination){a.mv=false;a.wait=999;}
+    else{
       a.mv=false;a.wait-=dt;
       if(a.wait<=0){const opts=adj[a.cur].filter(n=>n!==a.prev);const pool=opts.length?opts:adj[a.cur];a.to=pool[Math.floor(Math.random()*pool.length)];}
     }
@@ -516,7 +532,7 @@ function draw(){
   const ps=Math.max(7,Z*2.5);
   DOORS.forEach(d=>plaque(d.name,SX(d.lab[0]),SY(d.lab[1]),ps));
   AG.forEach(a=>nameTag(a.n,SX(a.x),SY(a.y-18),Math.max(6,Z*2.2)));
-  nameTag("Matt",SX(me.x),SY(me.y-24),Math.max(6,Z*2.2),"#d9b8ff");
+  nameTag("You",SX(me.x),SY(me.y-24),Math.max(6,Z*2.2),"#d9b8ff");
   if(focus)nameTag(focus.t==="door"?"[E] enter":"[E] talk",SX(me.x)+Z*10,SY(me.y-28),Math.max(6,Z*2),"#fff");
 }
 function loop(now){
@@ -717,6 +733,136 @@ setInterval(()=>{const h=Math.floor(gmin/60)%24,m=Math.floor(gmin%60/10)*10,ap=h
 /* ---------- boot ---------- */
 paintStatic();
 (document.fonts&&document.fonts.load?document.fonts.load('8px "Press Start 2P"'):Promise.resolve()).catch(()=>{}).then(()=>requestAnimationFrame(t=>{last=t;loop(t);}));
+})();
+</script>
+
+
+<style>
+#hq-live{position:fixed;z-index:30;top:calc(62px + env(safe-area-inset-top,0px));right:12px;border:3px solid #4a2a12;border-radius:7px;background:#f6e2b0;color:#46301a;padding:9px 12px;font:700 9px "Space Mono",monospace;box-shadow:0 3px 0 #4a2a12;cursor:pointer}
+#hq-live .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b32b2b;margin-right:7px}
+#hq-live[data-state=connected] .dot{background:#2f8f4a}
+#hq-live[data-state=working] .dot{background:#d98422}
+#hq-live-panel{position:fixed;z-index:31;right:12px;top:calc(108px + env(safe-area-inset-top,0px));width:min(490px,calc(100vw - 24px));max-height:calc(100vh - 130px);overflow:auto;background:#f3dfae;border:4px solid #5a3416;border-radius:7px;box-shadow:0 8px 0 #4a2a12;color:#46301a;display:none;font:13px Archivo,system-ui,sans-serif}
+#hq-live-panel.open{display:block}
+.hql-head{position:sticky;top:0;background:linear-gradient(#a8743a,#80502a);color:#f7e3b0;padding:13px 14px;border-bottom:3px solid #4a2a12;display:flex;justify-content:space-between;align-items:center;z-index:2}
+.hql-head strong{font:9px "Press Start 2P",monospace}
+.hql-head button,.hql-btn{border:2px solid #5a3416;border-radius:4px;background:#f6e2b0;color:#46301a;padding:7px 9px;font:700 10px "Space Mono",monospace;cursor:pointer}
+.hql-body{padding:13px;display:grid;gap:11px}
+.hql-status,.hql-card{background:#fbefcf;border:1.5px solid #c79a5c;border-radius:5px;padding:10px}
+.hql-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.hql-muted{color:#7d5a38;font-size:11px}
+.hql-kpi{font:700 15px "Space Mono",monospace;color:#9a4a14}
+.hql-list{display:grid;gap:7px}
+.hql-agent{display:grid;grid-template-columns:1fr auto;gap:5px;padding:8px;background:#fbefcf;border:1px solid #d2b27c;border-radius:4px}
+.hql-agent small{color:#7d5a38}
+.hql-tag{font:9px "Space Mono",monospace;text-transform:uppercase;color:#8a4a10}
+.hql-input,.hql-select{width:100%;padding:9px;border:1.5px solid #c79a5c;border-radius:4px;background:#fffaf0;color:#46301a;font:12px "Space Mono",monospace}
+.hql-approval{border:2px solid #c77a12;background:#fff4dc;padding:10px;border-radius:5px}
+.hql-option{display:block;width:100%;text-align:left;margin-top:6px;border:1px solid #c79a5c;background:#fffaf0;padding:8px;border-radius:4px;color:#46301a;cursor:pointer;font:11px Archivo,system-ui,sans-serif}
+.hql-option small{display:block;color:#7d5a38;margin-top:3px}
+.hql-msg{display:grid;gap:5px;max-height:180px;overflow:auto}
+.hql-msg article{padding:7px;background:#fbefcf;border-left:3px solid #b27a3e;font-size:11px;overflow-wrap:anywhere}
+.hql-section{font:9px "Press Start 2P",monospace;color:#80502a;margin:4px 0}
+.hql-error{color:#a32121;font-size:11px}
+@media(max-width:560px){#hq-live{top:calc(56px + env(safe-area-inset-top,0px));right:7px;padding:7px 8px;font-size:8px}#hq-live-panel{right:6px;top:calc(100px + env(safe-area-inset-top,0px));width:calc(100vw - 12px);max-height:calc(100vh - 115px)}}
+</style>
+<button id="hq-live" type="button" data-state="offline"><span class="dot"></span><span id="hql-label">HQ OFFLINE</span></button>
+<section id="hq-live-panel" aria-label="Live AI headquarters">
+ <header class="hql-head"><strong>TONKAS // LIVE HQ</strong><button id="hql-close" type="button">CLOSE ×</button></header>
+ <div class="hql-body" id="hql-body">
+  <div class="hql-status">Connect your backend in Settings to activate Matt's autonomous runtime.</div>
+  <div class="hql-card">
+   <div class="hql-section">BACKEND CONNECTION</div>
+   <input id="hql-url" class="hql-input" placeholder="https://your-project.supabase.co" aria-label="Backend URL">
+   <input id="hql-token" class="hql-input" type="password" placeholder="HQ admin token" aria-label="HQ admin token">
+   <button id="hql-save" class="hql-btn" type="button">SAVE CONNECTION</button>
+   <div class="hql-muted">Provider API keys belong in Supabase → Edge Functions → Secrets. Never paste model keys here.</div>
+  </div>
+ </div>
+</section>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const panel=$("hq-live-panel"), trigger=$("hq-live");
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_ZWLGkmQeAYgdUWoOOArAVw_2qA7xjSM";
+const DEFAULT_SUPABASE_URL="https://vgbsthdvohazsfpgugmu.supabase.co";
+let base=localStorage.getItem("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=localStorage.getItem("tonkas_admin_token")||"", latest=null, busy=false;
+if(/onrender\\.com$/i.test(base))base=DEFAULT_SUPABASE_URL;
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+$("hql-url").value=base;$("hql-token").value=token;
+function setState(state,label){trigger.dataset.state=state;$("hql-label").textContent=label;}
+function openPanel(){panel.classList.add("open");}
+function closePanel(){panel.classList.remove("open");}
+trigger.addEventListener("click",()=>panel.classList.toggle("open"));
+$("hql-close").addEventListener("click",closePanel);
+$("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();localStorage.setItem("tonkas_api_url",base);localStorage.setItem("tonkas_admin_token",token);refresh();});
+async function api(path,opts){
+ if(!base)throw new Error("Add your Supabase project URL in Settings first.");
+ const input=opts&&opts.body?JSON.parse(opts.body):{};
+ const action=path.endsWith("/snapshot")?"snapshot":"command";
+ const headers={"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY};
+ if(token)headers["x-hq-admin-token"]=token;
+ const payload=action==="snapshot"?{action:"snapshot"}:{action:"command",command:input};
+ const r=await fetch(base.replace(/\\/+$/,"")+"/functions/v1/tonkas-hq",{method:"POST",headers,body:JSON.stringify(payload)});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(data.error||data.detail||("HTTP "+r.status));
+ return data;
+}
+async function command(type,extra){
+ try{await api("/api/hq/commands",{method:"POST",body:JSON.stringify(Object.assign({type:type},extra||{}))});await refresh();}
+ catch(e){showError(e.message);}
+}
+function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const n=document.createElement("div");n.id="hql-error";n.className="hql-error";n.textContent=msg;$("hql-body").prepend(n);}}
+function render(s){
+ latest=s;
+ if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[]);
+ const active=(s.agents||[]).filter(a=>["working","planning","reviewing"].includes(a.status)).length;
+ const waiting=(s.approvals||[]).length;
+ setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
+ const providers=s.provider_status||{};
+ const providerNames=["ashnaai","gemini","groq","ollama"].filter(k=>providers[k]).join(", ")||"none configured";
+ const modelInfo="Matt: "+(providers.matt_model||"claude-opus-5")+" · lightweight: "+(providers.lightweight||"groq");
+ let html='<div class="hql-status"><div class="hql-row"><b>Runtime connected</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTONOMY ON":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">Providers configured: '+esc(providerNames)+'</div><div class="hql-muted">'+esc(modelInfo)+' · '+esc(s.server_time||"")+'</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">MATT // CEO</div><div class="hql-row"><button class="hql-btn" data-action="'+(s.autonomy_enabled?"autonomy.stop":"autonomy.start")+'">'+(s.autonomy_enabled?"PAUSE AUTONOMY":"START AUTONOMY")+'</button><button class="hql-btn" data-action="matt.run">RUN MATT NOW</button></div><div class="hql-muted">Matt plans and delegates internal work. External actions stay approval-gated.</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">COMPANY GOAL</div><textarea id="hql-goal" class="hql-input" rows="3">'+esc(s.company_goal||"")+'</textarea><button class="hql-btn" data-action="goal.save">UPDATE GOAL</button></div>';
+ html+='<div class="hql-card"><div class="hql-section">MESSAGE MATT</div><textarea id="hql-message" class="hql-input" rows="2" placeholder="Give Matt a goal or ask for a status update..."></textarea><button class="hql-btn" data-action="message.send">SEND TO MATT</button></div>';
+ html+='<div><div class="hql-section">AGENT ROSTER · '+(s.agents||[]).length+'</div><div class="hql-list">';
+ (s.agents||[]).forEach(a=>{html+='<div class="hql-agent"><div><b>'+esc(a.name)+'</b><br><small>'+esc(a.role)+' · '+esc(a.department)+'</small></div><span class="hql-tag">'+esc(a.status)+'</span><small style="grid-column:1/-1">'+esc(a.current_task||a.objective||"Standing by")+'</small></div>';});
+ html+='</div></div>';
+ html+='<div><div class="hql-section">OWNER DECISIONS · '+waiting+'</div>';
+ if(waiting===0)html+='<div class="hql-status hql-muted">No pending decisions.</div>';
+ (s.approvals||[]).forEach(a=>{html+='<div class="hql-approval"><b>'+esc(a.title)+'</b><p class="hql-muted">'+esc(a.context)+'</p><div class="hql-muted">Recommended: '+esc(a.recommended_option)+'</div>';
+ (a.options||[]).forEach(o=>{html+='<button class="hql-option" data-approval="'+esc(a.id)+'" data-option="'+esc(o.id)+'"><b>'+esc(o.label)+'</b><small>'+esc(o.consequence)+'</small></button>';});
+ html+='</div>';});
+ html+='</div>';
+ html+='<div><div class="hql-section">WORK QUEUE</div><div class="hql-list">';
+ (s.tasks||[]).slice(0,15).forEach(t=>{html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(t.result?'<small style="grid-column:1/-1">'+esc(t.result).slice(0,600)+'</small>':"")+'</article>';});
+ html+='</div></div>';
+ html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
+ (s.activity||[]).slice(-18).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
+ html+='</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Provider keys belong in Supabase Function Secrets, never here.</div></div>';
+ html+='<div id="hql-error" class="hql-error"></div>';
+ $("hql-body").innerHTML=html;
+}
+$("hql-body").addEventListener("click",async e=>{
+ const b=e.target.closest("button");if(!b)return;
+ if(b.dataset.approval){await command("approval.answer",{approval_id:b.dataset.approval,option_id:b.dataset.option});return;}
+ const a=b.dataset.action;if(!a)return;
+ if(a==="goal.save"){await command("company.goal",{company_goal:$("hql-goal").value});return;}
+ if(a==="message.send"){const v=$("hql-message").value.trim();if(v)await command("agent.message",{agent_id:"matt",room:"command",content:v});return;}
+ if(a==="settings.save"){base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();localStorage.setItem("tonkas_api_url",base);localStorage.setItem("tonkas_admin_token",token);await refresh();return;}
+ await command(a);
+});
+async function refresh(){
+ if(!base){setState("offline","HQ NOT CONNECTED");return;}
+ if(busy)return;busy=true;
+ try{const s=await api("/api/hq/snapshot");render(s);}
+ catch(e){setState("offline","HQ CONNECTION ERROR");if(panel.classList.contains("open"))showError(e.message);}
+ finally{busy=false;}
+}
+setInterval(refresh,5000);refresh();
 })();
 </script>
 
