@@ -59,8 +59,8 @@ function Bench({ x, y, rotate = 0 }: { x: number; y: number; rotate?: number }) 
 function AgentSprite({ agent, x, y, status, selected, onClick }: {
   agent: VillageAgent; x: number; y: number; status: string; selected: boolean; onClick: () => void;
 }) {
-  const working = status === "working" || status === "meeting";
-  return <g className={`village-agent ${working ? "is-working" : ""} ${selected ? "is-selected" : ""}`} transform={`translate(${x} ${y})`} onClick={(event: MouseEvent<SVGGElement>) => { event.stopPropagation(); onClick(); }} role="button" tabIndex={0} aria-label={`Inspect agent ${agent.name}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onClick(); }}>
+  const working = ["working", "meeting", "planning", "reviewing", "queued"].includes(status);
+  return <g className={`village-agent ${working ? "is-working" : ""} ${selected ? "is-selected" : ""}`} transform={`translate(${x} ${y})`} style={{ transition: "transform 1.4s steps(8, end)" }} onClick={(event: MouseEvent<SVGGElement>) => { event.stopPropagation(); onClick(); }} role="button" tabIndex={0} aria-label={`Inspect agent ${agent.name}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onClick(); }}>
     <ellipse cx="0" cy="19" rx="12" ry="4" fill="#2e4d35" opacity=".4" />
     <g className="agent-body">
       <rect x="-8" y="-10" width="16" height="18" fill={agent.color} stroke="#4a4437" strokeWidth="2" />
@@ -92,8 +92,8 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
   };
   const click = (id: string) => () => onOpenRoom(id);
   const agentPositions: Record<string, { x: number; y: number }> = {
-    revenue: { x: 330, y: 250 }, executive: { x: 690, y: 290 }, marketing: { x: 1110, y: 300 },
-    research: { x: 1015, y: 535 }, meeting: { x: 1170, y: 795 }, development: { x: 405, y: 815 },
+    revenue: { x: 330, y: 250 }, command: { x: 690, y: 290 }, media: { x: 1110, y: 300 },
+    research: { x: 1015, y: 535 }, war: { x: 1170, y: 795 }, factory: { x: 405, y: 815 },
   };
   return <svg viewBox="0 0 1400 900" role="img" aria-label="A living pixel-art village for managing AI business agents">
     <defs>
