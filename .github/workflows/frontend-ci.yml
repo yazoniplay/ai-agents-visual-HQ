@@ -16,3 +16,15 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+      - name: Syntax-check standalone village JavaScript
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const html = fs.readFileSync("index.html", "utf8");
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map((match) => match[1])
+            .filter((source) => source.trim().length > 0);
+          if (!scripts.length) throw new Error("No inline village script found.");
+          fs.writeFileSync("/tmp/tonkas-village.js", scripts.join("\n"));
+          NODE
+          node --check /tmp/tonkas-village.js
