@@ -8,14 +8,14 @@ Matt is the CEO/orchestrator. When autonomy is enabled, he reviews the company g
 
 This first runtime has model-backed planning and internal task execution. It does not have arbitrary shell, browser, payment, social-media, email, or account access. It cannot truthfully claim it has published, purchased, contacted a customer, deployed code, or changed an account. Those actions need a separately implemented integration and an owner approval gate.
 
-At least one provider API key is required. API usage is billed separately; ChatGPT, Claude, and Gemini consumer subscriptions do not automatically provide API credit. Keep keys in Render environment variables or an untracked local `.env` file. Never put keys in the frontend, GitHub, `index.html`, or `VITE_*` variables.
+At least one provider API key is required. The default planning interval is five minutes and one specialist task is started per cycle to limit surprise usage. API usage is billed separately; ChatGPT, Claude, and Gemini consumer subscriptions do not automatically provide API credit. Keep keys in Render environment variables or an untracked local `.env` file. Never put keys in the frontend, GitHub, `index.html`, or `VITE_*` variables.
 
 ### Deploy on Render
 
 1. Connect this repository to Render and create a Blueprint from `render.yaml`.
-2. Render creates the Python web service and a 1 GB persistent disk in Frankfurt.
+2. Render creates the Python web service and a 1 GB persistent disk in Frankfurt. **This requires a paid Render web-service plan**; the disk-backed free service option is not available.
 3. In the service Environment page, add at least one of `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`.
-4. Set `HQ_DEFAULT_PROVIDER` to the provider whose key you added. Optional model overrides are in `backend/.env.example`.
+4. Set `HQ_DEFAULT_PROVIDER` to the provider whose key you added. To split the workload across models, set `HQ_MATT_PROVIDER` and `HQ_AGENT_PROVIDER_MAP` (JSON mapping agent IDs to `openai`, `anthropic`, or `gemini`). Optional model overrides are in `backend/.env.example`.
 5. Copy the service's public HTTPS URL. In the village, open **HQ Live → Settings**, paste the URL and generated `HQ_ADMIN_TOKEN`, then save.
 6. Confirm the provider indicator is ready. Start autonomy manually from HQ Live.
 
