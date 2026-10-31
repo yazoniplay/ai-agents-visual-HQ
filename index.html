@@ -102,12 +102,11 @@ body{background:#5f9a3c;color:var(--ink);font-family:var(--sans);-webkit-user-se
 </style>
 
 <div id="hud">
-  <div class="brand">TONKAS<small>v6</small></div>
-  <div class="pill"><i style="background:#f28a2a"></i><div><div class="l">REVENUE 30D</div><div class="v" id="hRev">$2207</div></div></div>
-  <div class="pill"><i style="background:#2f8f4a"></i><div><div class="l">CODEX 5H</div><div class="v">2%<em>• 13h</em></div></div></div>
-  <div class="pill"><i style="background:#d94a1f"></i><div><div class="l">NEEDS ATTENTION</div><div class="v">8<em>• ideas</em></div></div></div>
-  <div class="pill"><i style="background:#2b7fd6"></i><div><div class="l">MATT NEXT</div><div class="v" id="hNext">42m</div></div></div>
-  <div class="clock"><div class="cbox"><div class="d" id="cDay">SAT. 31</div><div class="t" id="cTime">9:40 am</div></div></div>
+  <div class="brand">TONKAS<small>HQ</small></div>
+  <div class="pill"><i style="background:#2f8f4a"></i><div><div class="l">TEAM</div><div class="v" id="hAgents">—</div></div></div>
+  <div class="pill"><i style="background:#d94a1f"></i><div><div class="l">OPEN WORK</div><div class="v" id="hTasks">—</div></div></div>
+  <div class="pill"><i style="background:#2b7fd6"></i><div><div class="l">NEXT MEETING</div><div class="v" id="hNext">—</div></div></div>
+  <div class="clock"><div class="cbox"><div class="d" id="cDay">LOCAL TIME</div><div class="t" id="cTime">--:--</div></div></div>
 </div>
 <div id="bar" role="toolbar" aria-label="Quick travel">
   <button class="slot" type="button" data-go="command" aria-label="Command Center" title="Command Center"><b>1</b><i style="background:#d2652b"></i></button>
@@ -686,56 +685,13 @@ function revenueChart(){
   return s+"</svg>";
 }
 const P={
- command:()=>head("Command Center","Matt's bridge — operations overview, today's priorities, attention items")+`<div class="pb">
-  <div class="grid">${card("Matt state","—","idle",true)}${card("Last awake","—","",true)}${card("Next wake",`<span class="nextw">42m</span>`,"",true)}${card("Tasks today","4","$0.00 spent",true)}</div>
-  <div class="grid">${card("OpenRouter","$7.48","WARN")}${card("Spent (lifetime)","$32.52","")}${card("Revenue (30d)","$2,207","Stripe + Gumroad")}</div>
-  <div class="sec"><span class="pip"></span>Needs your <b>attention</b> (1)</div>
-  <div class="attn"><span class="b">8</span>Dennis ideas needing decision</div>
-  <div class="sec"><span class="pip"></span>Today's <b>briefing</b></div>
-  <div class="brief">## Last updated: 2026-06-08T18:56:14Z
-
-<h4>TOP THINGS YOU SHOULD KNOW</h4>1. No worker tasks fired this cycle: Finn has no NEW Fiverr order, Bunc/Maverick work is still behind Trevor gates.
-2. OpenRouter remains WARN: total_usage 32.520230354, remaining 7.479769646000001; dispatch stays conservative.
-3. Seven pending Trevor tasks are still the active unblockers: #105, #114, #89, #90, #91, #92, #93.
-
-<h4>What changed since last cycle</h4>- Fresh API checks found no NEW orders, no DRAFT_READY/REVISION_REQUESTED work, no failed Fiverr deliveries.
-- Crew state is unchanged: Finn/Dennis/Bunc idle or gated, Pham awaiting setup, Maverick is Day 18/30 on the build guide.
-
-<h4>What's next</h4>- Hold worker dispatch until Trevor clears a gate or a NEW customer order arrives.
-- Highest-leverage unblock remains Maverick #153/#127/#130 because Maverick is Day 18/30.
-
-<h4>Need from Commander</h4>- Clear one of the seven Trevor gates, especially Maverick #153/#127/#130, Dennis #114/#89.</div>
- </div>`,
- research:()=>head("Research Lab","Dennis's idea pipeline — pending only by default. Switch tabs to see history.")+`<div class="pb">
-  <div class="tabs" role="tablist">${["Pending 8","Approved 0","Promoted 0","Killed 0"].map((t,i)=>`<button class="tab" role="tab" type="button" data-tab="${i}" aria-selected="${i===0}">${t}</button>`).join("")}</div>
-  <div class="list" id="ideas">${IDEAS.map((x,i)=>`<div class="row${i===4?" open":""}" tabindex="0" role="button" data-row><div class="top"><span class="tag">Proposed</span><span class="t">${esc(x[0])}</span></div>
-   <div class="detail"><div class="grid"><div class="card"><div class="k">Revenue</div><div class="v">${esc(x[1])}</div></div><div class="card"><div class="k">Startup cost</div><div class="v">${esc(x[2])}</div></div><div class="card"><div class="k">Executor</div><div class="v b">${esc(x[3])}</div></div><div class="card"><div class="k">Confidence</div><div class="v b">${esc(x[4])}</div></div></div>
-   <div class="lnk">Show Dennis's full report</div><div class="lnk" style="margin-top:4px">Your verdict</div><textarea id="v${i}" placeholder="Feedback for Dennis — gets logged to lessons.json" aria-label="Your verdict"></textarea></div></div>`).join("")}</div>
-  <div class="empty" id="ideasEmpty" hidden>Nothing here yet.</div>
-  <div class="sec"><span class="pip"></span>Recent research <b>tasks</b> (${TASKS.length})</div>
-  <div class="list">${TASKS.map(t=>`<div class="task"><div class="h"><span class="tag ${t[0]}">${t[0]==="done"?"Done":"Rejected"}</span>${t[1]}</div><div>${esc(t[2])}</div><div class="p">${esc(t[3])}</div></div>`).join("")}</div>
- </div>`,
- factory:()=>head("Factory","Order pipeline + executor agents · auto-refresh 5s")+`<div class="pb">
-  <div class="grid">${card("Orders total","0","",true)}${card("Awaiting approval","0","needs review",true)}${card("Finn pending","0","",true)}${card("Bunc in progress","0","",true)}</div>
-  <div class="tabs" role="tablist">${["Finn","Approvals","Delivered","Bunc"].map((t,i)=>`<button class="tab" type="button" role="tab" data-ftab="${i}" aria-selected="${i===0}">${t}</button>`).join("")}</div>
-  <div class="empty" id="fEmpty">No orders in this queue. New Fiverr and print orders appear here as they arrive.</div>
-  <div class="fnote" id="fTick">Refreshed just now</div></div>`,
- revenue:()=>head("Revenue Bay","Stripe, Gumroad and manual income · last 30 days")+`<div class="pb">
-  <div class="grid">${card("Stripe (personal)","$759.76","30d")}${card("Gumroad","$1,447.12","30d")}${card("Fiverr (manual)","$0.00","30d")}${card("Total","$2,207","30d",true)}</div>
-  <div class="sec"><span class="pip"></span>Daily <b>revenue</b></div>
-  <div class="chart">${revenueChart()}<div class="leg"><span><i style="background:#ef7fb0"></i>Stripe</span><span><i style="background:#5cc8e8"></i>Gumroad</span></div></div>
-  <div class="fnote">Sample figures. Connect your Stripe and Gumroad keys to show live numbers.</div></div>`,
- war:()=>head("War Room","The crew — who is doing what, and what is blocking them")+`<div class="pb"><div class="who">${[
-  ["Matt","idle","idle","Commander's bridge. Wakes on a schedule and dispatches work."],
-  ["Dennis","idle","idle","Researches ideas. 8 proposals waiting on your verdict."],
-  ["Finn","idle","idle","Fiverr orders. No NEW orders this cycle."],
-  ["Bunc","gated","gated","Print products. Waiting on Trevor gate #114."],
-  ["Maverick","gated","gated","Build guide, Day 18 of 30. Blocked on #153 / #127 / #130."],
-  ["Pham","setup","awaiting setup","Needs credentials before first task."],
-  ["Luke","idle","idle","Standing by."]
- ].map(a=>`<div class="card"><div class="nm">${a[0]}</div><div class="st ${a[1]}">${a[2]}</div><div class="s" style="text-align:left">${a[3]}</div></div>`).join("")}</div></div>`,
- media:()=>head("Media Studio","Content queue — threads, posts and videos waiting to go out")+`<div class="pb"><div class="grid">${card("Drafts","0","",true)}${card("Scheduled","0","",true)}${card("Published (7d)","0","",true)}</div><div class="empty">The queue is empty. Drafts from Maverick land here for approval.</div></div>`,
- armory:()=>head("Armory","Tools, skills and keys the crew can use")+`<div class="pb"><div class="grid">${card("Skills","12","installed",true)}${card("Connectors","4","Stripe · Gumroad · Fiverr · GitHub",true)}${card("Keys expiring","0","",true)}</div><div class="empty">Nothing needs renewing.</div></div>`
+ command:()=>head("Command Center","Live company operations")+'<div class="pb"><div class="brief">Live agent activity, tasks, approvals, and meeting records are available in Live HQ.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ research:()=>head("Research Lab","Customer evidence and opportunity research")+'<div class="pb"><div class="brief">Review saved public demand signals, research deliverables, and validation work in Live HQ.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ factory:()=>head("Factory","Product and engineering work")+'<div class="pb"><div class="brief">Product specifications, engineering tasks, and agent deliverables are tracked in the live work queue.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ revenue:()=>head("Revenue Bay","Finance and unit economics")+'<div class="pb"><div class="brief">No payment or revenue integration is connected. Financial figures will only appear when backed by a verified data source.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ war:()=>head("War Room","Agent status and quality review")+'<div class="pb"><div class="brief">The live roster includes each agent procedure, current task, persistent memory, and latest execution record.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ media:()=>head("Media Studio","Marketing and content operations")+'<div class="pb"><div class="brief">Marketing plans and content drafts are tracked as internal deliverables. Nothing is published automatically.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>',
+ armory:()=>head("Agent Skills","Specialist procedures and permissions")+'<div class="pb"><div class="brief">Each agent has a saved specialist charter, operating procedure, quality bar, guardrails, and persistent memory.</div><button class="hql-btn" type="button" data-open-hq>OPEN LIVE HQ</button></div>'
 };
 let tick=null,since=0;
 function open(id){
@@ -743,6 +699,7 @@ function open(id){
   panel.innerHTML=P[id]();overlay.classList.add("on");
   panel.querySelector("[data-close]").addEventListener("click",close);
   panel.querySelector("[data-close]").focus({preventScroll:true});
+  const openHQ=panel.querySelector("[data-open-hq]");if(openHQ)openHQ.addEventListener("click",()=>{close();window.dispatchEvent(new Event("tonkas:open-hq"));});
   panel.querySelectorAll("[data-row]").forEach(r=>{
     r.addEventListener("click",e=>{if(e.target.closest(".detail"))return;r.classList.toggle("open");});
     r.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target===r){e.preventDefault();r.classList.toggle("open");}});
@@ -759,10 +716,9 @@ function open(id){
   if(id==="factory")tick=setInterval(()=>{since+=5;const e=panel.querySelector("#fTick");if(e)e.textContent="Refreshed just now";},5000);
 }
 function close(){overlay.classList.remove("on");clearInterval(tick);panel.innerHTML="";}
-/* ---------- HUD clock ---------- */
-let secs=42*60;
-setInterval(()=>{secs=secs<=60?42*60:secs-1;const m=Math.ceil(secs/60)+"m";document.getElementById("hNext").textContent=m;document.querySelectorAll(".nextw").forEach(n=>n.textContent=m);},1000);
-setInterval(()=>{const h=Math.floor(gmin/60)%24,m=Math.floor(gmin%60/10)*10,ap=h>=12?"pm":"am",h12=h%12===0?12:h%12;document.getElementById("cTime").textContent=h12+":"+String(m).padStart(2,"0")+" "+ap;},500);
+/* ---------- real local clock ---------- */
+function updateLocalClock(){const d=new Date(),day=document.getElementById("cDay"),time=document.getElementById("cTime");if(day)day.textContent=d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"}).toUpperCase();if(time)time.textContent=d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});}
+updateLocalClock();setInterval(updateLocalClock,1000);
 /* ---------- boot ---------- */
 paintStatic();
 (document.fonts&&document.fonts.load?document.fonts.load('8px "Press Start 2P"'):Promise.resolve()).catch(()=>{}).then(()=>requestAnimationFrame(t=>{last=t;loop(t);}));
@@ -834,6 +790,7 @@ function openPanel(){panel.classList.add("open");panel.style.display="block";tri
 function closePanel(){panel.classList.remove("open");panel.style.display="none";trigger.setAttribute("aria-expanded","false");}
 trigger.setAttribute("aria-controls","hq-live-panel");trigger.setAttribute("aria-expanded","false");
 trigger.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();panel.classList.contains("open")?closePanel():openPanel();});
+window.addEventListener("tonkas:open-hq",openPanel);
 $("hql-url").value=base;$("hql-token").value=token;
 $("hql-close").addEventListener("click",closePanel);
 $("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();safeSet("tonkas_api_url",base);safeSetSession("tonkas_admin_token",token);refresh();});
@@ -854,52 +811,82 @@ async function command(type,extra){
  catch(e){showError(e.message);}
 }
 function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const n=document.createElement("div");n.id="hql-error";n.className="hql-error";n.textContent=msg;$("hql-body").prepend(n);}}
+function formatDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?"Time unavailable":d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"});}
+function updateHud(){
+ const s=latest||{},agents=s.agents||[],tasks=s.tasks||[];
+ const team=$("hAgents"),work=$("hTasks");if(team)team.textContent=String(agents.length);
+ if(work)work.textContent=String(tasks.filter(t=>["queued","running","blocked","needs_review"].includes(t.status)).length);
+ const next=$("hNext");if(!next)return;
+ if(!s.autonomy_enabled){next.textContent="PAUSED";return;}
+ const target=Date.parse(s.next_meeting_at||"");if(!Number.isFinite(target)){next.textContent="SCHEDULING";return;}
+ const left=Math.max(0,Math.ceil((target-Date.now())/1000));next.textContent=left===0?"DUE":Math.floor(left/60)+"m "+String(left%60).padStart(2,"0")+"s";
+}
 function render(s){
  latest=s;
  if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[],s.tasks||[],s.messages||[],s.character_brains||[]);
- const active=(s.agents||[]).filter(a=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length;
- const waiting=(s.approvals||[]).length;
- setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
- const providers=s.provider_status||{};
- const providerNames=["ashnaai","gemini","groq","ollama"].filter(k=>providers[k]).join(", ")||"none configured";
- const modelInfo="Matt: "+(providers.matt_model||"claude-opus-5")+" · lightweight: "+(providers.lightweight||"groq");
- let html='<div class="hql-status"><div class="hql-row"><b>Runtime connected</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTONOMY ON":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">Providers configured: '+esc(providerNames)+'</div><div class="hql-muted">'+esc(modelInfo)+' · '+esc(s.server_time||"")+'</div></div>';
+ const active=(s.agents||[]).filter(a=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length,waiting=(s.approvals||[]).length;
+ setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");updateHud();
+ const providers=s.provider_status||{},providerNames=["ashnaai","gemini","groq","ollama"].filter(k=>providers[k]).join(", ")||"none configured";
+ const modelInfo="Matt: "+(providers.matt_model||"not reported")+" · lightweight: "+(providers.lightweight||"not reported");
+ let html='<div class="hql-status"><div class="hql-row"><b>Runtime connected</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTONOMY ON":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">Providers configured: '+esc(providerNames)+'</div><div class="hql-muted">'+esc(modelInfo)+' · '+esc(formatDate(s.server_time))+'</div></div>';
  if(s.gemini_quota_blocked)html+='<div class="hql-error">GEMINI API QUOTA EXHAUSTED · AUTONOMY PAUSED · QUEUED TASKS PRESERVED. Restore API quota, then click START AUTONOMY to retry blocked work.</div>';
  const mattUpdate=(s.messages||[]).filter(m=>m.sender_id==="matt"&&m.recipient_id==="owner").slice(-1)[0];
- html+='<div class="hql-card"><div class="hql-section">MATT // CEO</div><div class="hql-row"><button class="hql-btn" data-action="'+(s.autonomy_enabled?"autonomy.stop":"autonomy.start")+'">'+(s.autonomy_enabled?"PAUSE AUTONOMY":"START AUTONOMY")+'</button><button class="hql-btn" data-action="matt.run">RUN MATT NOW</button></div><div class="hql-muted">Matt operates autonomously, checks in with specialists, delegates work and briefs you. External actions stay approval-gated.</div><article class="hql-agent" style="display:block"><b>LATEST CEO UPDATE</b><p>'+esc(mattUpdate?.content||"Matt has not sent an update yet.")+'</p><small>'+esc(mattUpdate?.created_at||"Waiting for first update")+'</small></article></div>';
+ html+='<div class="hql-card"><div class="hql-section">MATT // CEO</div><div class="hql-row"><button class="hql-btn" data-action="'+(s.autonomy_enabled?"autonomy.stop":"autonomy.start")+'">'+(s.autonomy_enabled?"PAUSE AUTONOMY":"START AUTONOMY")+'</button><button class="hql-btn" data-action="matt.run">RUN MATT NOW</button></div><div class="hql-muted">Matt coordinates the portfolio, delegates specialist work, reviews deliverables, and briefs you. External actions remain approval-gated.</div><article class="hql-agent" style="display:block"><b>LATEST CEO UPDATE</b><p>'+esc(mattUpdate?.content||"No CEO update has been recorded yet.")+'</p><small>'+esc(mattUpdate?.created_at?formatDate(mattUpdate.created_at):"")+'</small></article></div>';
+ html+='<div class="hql-card"><div class="hql-section">NEXT TEAM MEETING</div><div class="hql-row"><b>'+esc(s.next_meeting_at?formatDate(s.next_meeting_at):"No meeting scheduled")+'</b><span class="hql-tag">'+(s.autonomy_enabled?"AUTOMATIC · EVERY 5 MINUTES":"AUTONOMY PAUSED")+'</span></div><div class="hql-muted">The top-bar countdown uses the saved schedule.</div></div>';
  html+='<div class="hql-card"><div class="hql-section">COMPANY GOAL</div><textarea id="hql-goal" class="hql-input" rows="3">'+esc(s.company_goal||"")+'</textarea><button class="hql-btn" data-action="goal.save">UPDATE GOAL</button></div>';
- html+='<div class="hql-card"><div class="hql-section">5-MINUTE TEAM MEETINGS</div>';
- const meetings=s.meetings||[];
- if(!meetings.length)html+='<div class="hql-muted">First meeting is scheduled automatically while autonomy is running.</div>';
- meetings.slice(0,4).forEach(m=>{html+='<article class="hql-agent" style="display:block"><b>'+esc(m.started_at||"Meeting")+'</b><p>'+esc(m.summary||"")+'</p><small>'+esc(String((m.decisions||[]).length)+' decisions · '+String((m.attendees||[]).length)+' attendees')+'</small>';(m.decisions||[]).forEach(d=>{html+='<p><b>'+esc(d.owner||"Unassigned")+'</b> — '+esc(d.decision||"Follow-up")+'<br><small>Success: '+esc(d.success_criteria||"Not specified")+'</small></p>';});html+='</article>';});
+ const meetings=s.meetings||[];html+='<div class="hql-card"><div class="hql-section">MEETING ARCHIVE · '+meetings.length+' SAVED</div>';
+ if(!meetings.length)html+='<div class="hql-muted">No meeting records have been saved yet.</div>';
+ meetings.forEach(m=>{
+  html+='<details class="hql-meeting"><summary><b>'+esc(m.title||"Executive operating review")+'</b><small>'+esc(formatDate(m.started_at))+' · '+esc(String((m.attendees||[]).length))+' attendees · '+esc(String((m.decisions||[]).length))+' decisions</small></summary>';
+  html+='<div class="hql-meeting-body"><p>'+esc(m.summary||"No summary saved.")+'</p>';
+  if((m.agenda||[]).length)html+='<b>AGENDA</b><ul>'+(m.agenda||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>';
+  html+='<b>DISCUSSION</b>';
+  if((m.discussion||[]).length)(m.discussion||[]).forEach(d=>{
+   html+='<section class="hql-discussion"><b>'+esc(d.topic||"Discussion topic")+'</b>';
+   if((d.key_points||[]).length)html+='<ul>'+(d.key_points||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>';
+   if((d.evidence||[]).length)html+='<div class="hql-muted"><b>Evidence reviewed</b><ul>'+(d.evidence||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+   if(d.conclusion)html+='<p><b>Conclusion:</b> '+esc(d.conclusion)+'</p>';
+   if((d.open_questions||[]).length)html+='<p><b>Open questions:</b> '+esc(d.open_questions.join(" · "))+'</p>';
+   html+='</section>';
+  });else html+='<p class="hql-muted">This older record predates structured discussion notes. Its saved summary and decisions are shown here.</p>';
+  if((m.decisions||[]).length)html+='<b>DECISIONS</b><ol>'+(m.decisions||[]).map(d=>'<li><b>'+esc(d.owner||"Unassigned")+'</b> — '+esc(d.decision||"")+'<br><small>Priority: '+esc(d.priority||"normal")+' · Success criteria: '+esc(d.success_criteria||"Not recorded")+'</small></li>').join("")+'</ol>';
+  if((m.action_items||[]).length)html+='<b>FOLLOW-UP TASKS</b><ul>'+(m.action_items||[]).map(a=>'<li><b>'+esc(a.owner||"Unassigned")+'</b> — '+esc(a.decision||"")+'<br><small>'+(a.task_id?"Task linked: "+esc(a.task_id):"Task not linked")+' · '+esc(a.success_criteria||"")+'</small></li>').join("")+'</ul>';
+  html+='<div class="hql-muted">Attendees: '+esc((m.attendees||[]).join(", "))+' · Provider: '+esc(m.provider||"not recorded")+' · Next meeting: '+esc(m.next_meeting_at?formatDate(m.next_meeting_at):"not recorded")+'</div></div></details>';
+ });
  html+='</div>';
  html+='<div class="hql-card"><div class="hql-section">IVY // CUSTOMER DEMAND RADAR</div><div class="hql-muted">Public posts and reviews expressing unmet needs or willingness to pay. Signals are research leads, not confirmed customers.</div>';
  const opportunities=s.opportunities||[];
- if(!opportunities.length)html+='<div class="hql-muted">No findings saved yet. Ivy scans public sources approximately every 10 minutes while autonomy is active and Gemini live search is available.</div>';
- opportunities.slice(0,8).forEach(o=>{const u=String(o.source_url||"");const safe=/^https:\/\//i.test(u)?u:"";html+='<article class="hql-agent" style="display:block"><div class="hql-row"><b>'+esc(o.title)+'</b><span class="hql-tag">SCORE '+esc(o.score||"?")+'/10</span></div><p>'+esc(o.problem||"")+'</p><small>'+esc(o.buyer||"Buyer unknown")+' · '+esc(o.evidence_level||"unverified")+' · '+esc(o.status||"new")+'</small><p><small>'+esc(o.buying_signal||"")+'</small></p>'+(safe?'<a href="'+esc(safe)+'" target="_blank" rel="noopener noreferrer">OPEN PUBLIC SOURCE ↗</a>':"")+'</article>';});
+ if(!opportunities.length)html+='<div class="hql-muted">No verified findings are saved yet. Ivy requires live web search to discover new public signals.</div>';
+ opportunities.forEach(o=>{const u=String(o.source_url||""),safe=/^https:\/\//i.test(u)?u:"";html+='<article class="hql-agent" style="display:block"><div class="hql-row"><b>'+esc(o.title)+'</b><span class="hql-tag">SCORE '+esc(o.score||"?")+'/10</span></div><p>'+esc(o.problem||"")+'</p><small>'+esc(o.buyer||"Buyer unknown")+' · '+esc(o.evidence_level||"unverified")+' · '+esc(o.status||"new")+'</small><p><small>'+esc(o.buying_signal||"")+'</small></p>'+(safe?'<a href="'+esc(safe)+'" target="_blank" rel="noopener noreferrer">OPEN PUBLIC SOURCE ↗</a>':"")+'</article>';});
  html+='</div>';
- html+='<div class="hql-card"><div class="hql-section">MESSAGE MATT</div><textarea id="hql-message" class="hql-input" rows="2" placeholder="Give Matt a goal or ask for a status update..."></textarea><button class="hql-btn" data-action="message.send">SEND TO MATT</button></div>';
- html+='<div><div class="hql-section">AGENT ROSTER · '+(s.agents||[]).length+'</div><div class="hql-list">';
- (s.agents||[]).forEach(a=>{const task=(s.tasks||[]).find(t=>String(t.id)===String(a.current_task));const brain=(s.character_brains||[]).find(b=>b.agent_id===a.id);const action=brain?brain.action+" · node "+brain.destination_node:"awaiting next brain cycle";html+='<div class="hql-agent"><div><b>'+esc(a.name)+'</b><br><small>'+esc(a.role)+' · '+esc(a.department)+'</small></div><span class="hql-tag">'+esc(a.status)+'</span><small style="grid-column:1/-1"><b>NOW:</b> '+esc(task?.title||a.objective||"Standing by")+'</small><small style="grid-column:1/-1"><b>CHARACTER:</b> '+esc(action)+(brain?.speech?' · “'+esc(brain.speech)+'”':"")+(brain?.target_agent?' · with '+esc(brain.target_agent):"")+'</small></div>';});
+ html+='<div class="hql-card"><div class="hql-section">MESSAGE MATT</div><textarea id="hql-message" class="hql-input" rows="2" placeholder="Write a task, question, or decision for Matt..."></textarea><button class="hql-btn" data-action="message.send">SEND TO MATT</button></div>';
+ const profiles=s.agent_profiles||[],memories=s.agent_memories||[],runs=s.agent_runs||[];
+ html+='<div><div class="hql-section">SPECIALIST PROFILES & OPERATING PROCEDURES · '+profiles.length+'</div><div class="hql-list">';
+ (s.agents||[]).forEach(a=>{
+  const profile=profiles.find(p=>p.agent_id===a.id),brain=(s.character_brains||[]).find(b=>b.agent_id===a.id),run=runs.find(r=>r.agent_id===a.id),agentMemories=memories.filter(m=>m.agent_id===a.id).slice(0,4),task=(s.tasks||[]).find(t=>String(t.id)===String(a.current_task));
+  html+='<details class="hql-agent hql-profile"><summary><b>'+esc(a.name)+'</b><span class="hql-tag">'+esc(a.status)+'</span><small>'+esc(profile?.specialty||a.role||"Specialist profile unavailable")+' · Procedure v'+esc(profile?.procedure_version||"1")+'</small></summary>';
+  html+='<div class="hql-profile-body"><p>'+esc(profile?.mission||a.objective||"")+'</p><b>RESPONSIBILITIES</b><ul>'+(profile?.responsibilities||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul><b>OPERATING PROCEDURE</b><ol>'+(profile?.procedure||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ol><b>QUALITY BAR</b><ul>'+(profile?.quality_bar||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul><b>GUARDRAILS</b><ul>'+(profile?.guardrails||[]).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>';
+  html+='<div class="hql-muted"><b>Current task:</b> '+esc(task?.title||"No task assigned")+'</div>';
+  if(brain)html+='<div class="hql-muted"><b>Character action:</b> '+esc(brain.action||"")+' · '+esc(brain.destination_node||"")+(brain.speech?' · “'+esc(brain.speech)+'”':"")+'</div>';
+  if(run)html+='<div class="hql-muted"><b>Latest run:</b> '+esc(run.status)+' · '+esc(formatDate(run.started_at))+' · '+esc(run.provider||"provider not recorded")+'<p>'+esc(run.summary||"")+'</p></div>';
+  html+='<b>PERSISTENT MEMORY</b>';
+  if(agentMemories.length)html+='<ul>'+agentMemories.map(m=>'<li><small>'+esc(m.memory_type)+' · '+esc(formatDate(m.created_at))+'</small><br>'+esc(m.content)+'</li>').join("")+'</ul>';
+  else html+='<p class="hql-muted">No durable memories have been written from completed tasks yet.</p>';
+  html+='</div></details>';
+ });
  html+='</div></div>';
  html+='<div><div class="hql-section">OWNER DECISIONS · '+waiting+'</div>';
  if(waiting===0)html+='<div class="hql-status hql-muted">No pending decisions.</div>';
  (s.approvals||[]).forEach(a=>{html+='<div class="hql-approval"><b>'+esc(a.title)+'</b><p class="hql-muted">'+esc(a.context)+'</p><div class="hql-muted">Recommended: '+esc(a.recommended_option)+'</div>';
- (a.options||[]).forEach(o=>{html+='<button class="hql-option" data-approval="'+esc(a.id)+'" data-option="'+esc(o.id)+'"><b>'+esc(o.label)+'</b><small>'+esc(o.consequence)+'</small></button>';});
- html+='</div>';});
- html+='</div>';
- html+='<div><div class="hql-section">WORK QUEUE</div><div class="hql-list">';
- (s.tasks||[]).slice(0,15).forEach(t=>{const result=esc(t.result||"").replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(result?'<small style="grid-column:1/-1;white-space:pre-wrap">'+result.slice(0,900)+'</small>':"")+'</article>';});
- html+='</div></div>';
- html+='<div><div class="hql-section">TEAM CONVERSATIONS</div><div class="hql-msg">';
- (s.messages||[]).slice(0,18).forEach(m=>{html+='<article><b>'+esc(m.sender_id)+' → '+esc(m.recipient_id||"channel") +'</b><br>'+esc(m.content)+'<br><small>'+esc(m.created_at)+'</small></article>';});
- html+='</div></div>';
- html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
- (s.activity||[]).slice(0,18).forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
- html+='</div></div>';
- html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Paste the current tonkas_admin_token from Supabase Vault. This token is saved only for this browser session. Never put the Gemini API key in this field or in chat; provider keys belong in Supabase Function Secrets.</div></div>';
- html+='<div id="hql-error" class="hql-error"></div>';
- $("hql-body").innerHTML=html;
+ (a.options||[]).forEach(o=>{html+='<button class="hql-option" data-approval="'+esc(a.id)+'" data-option="'+esc(o.id)+'"><b>'+esc(o.label)+'</b><small>'+esc(o.consequence)+'</small></button>';});html+='</div>';});
+ html+='</div><div><div class="hql-section">WORK QUEUE</div><div class="hql-list">';
+ (s.tasks||[]).forEach(t=>{const result=esc(t.result||"").replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(result?'<small style="grid-column:1/-1;white-space:pre-wrap">'+result.slice(0,900)+'</small>':"")+'</article>';});
+ html+='</div></div><div><div class="hql-section">TEAM CONVERSATIONS</div><div class="hql-msg">';
+ (s.messages||[]).slice(-30).reverse().forEach(m=>{html+='<article><b>'+esc(m.sender_id)+' → '+esc(m.recipient_id||"channel")+'</b><br>'+esc(m.content)+'<br><small>'+esc(formatDate(m.created_at))+'</small></article>';});
+ html+='</div></div><div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
+ (s.activity||[]).slice(-30).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(formatDate(a.created_at))+'</small></article>';});
+ html+='</div></div><div class="hql-card"><div class="hql-section">CONNECTION SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" aria-label="Supabase project URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" aria-label="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Model provider keys stay in Supabase Function Secrets. Never paste a provider key here.</div></div><div id="hql-error" class="hql-error"></div>';
+ $("hql-body").innerHTML=html;updateHud();
 }
 $("hql-body").addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b)return;
@@ -920,7 +907,7 @@ async function refresh(){
 }
 let positionSyncBusy=false;
 async function syncCharacterPositions(){if(positionSyncBusy||!base||!token||!AG.length)return;positionSyncBusy=true;try{const positions=AG.map(a=>({id:a.n.toLowerCase(),x:a.x/W,y:a.y/H}));await api("/api/hq/commands",{method:"POST",body:JSON.stringify({type:"characters.position",positions})});}catch(e){console.warn("Character position sync failed:",e.message);}finally{positionSyncBusy=false;}}
-setInterval(refresh,5000);setInterval(syncCharacterPositions,12000);refresh();
+setInterval(refresh,5000);setInterval(syncCharacterPositions,12000);setInterval(updateHud,1000);refresh();
 })();
 </script>
 
