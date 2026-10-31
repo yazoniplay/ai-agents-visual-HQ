@@ -155,7 +155,7 @@ async function mattCycle(force:boolean=false):Promise<any>{
 }
 async function runOneTask():Promise<any>{
  const rows=await db("tonkas_tasks?select=*&status=eq.queued&assigned_to=not.is.null&order=created_at.asc&limit=40");
- const queue=(rows||[]).sort((a:any,b:any)=>({high:0,normal:1,low:2}[a.priority]??1)-({high:0,normal:1,low:2}[b.priority]??1));
+ const priorityOrder:Record<string,number>={high:0,normal:1,low:2};const queue=(rows||[]).sort((a:any,b:any)=>(priorityOrder[String(a.priority)]??1)-(priorityOrder[String(b.priority)]??1));
  for(const task of queue){
   const agent=AGENTS.find(a=>a.id===task.assigned_to);if(!agent)continue;
   const claimed=await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id)+"&status=eq.queued",{method:"PATCH",body:{status:"running",updated_at:now()},prefer:"return=representation"});
