@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 DB_PATH=Path(os.getenv("HQ_DB_PATH","./data/hq.sqlite3"))
 DB_PATH.parent.mkdir(parents=True,exist_ok=True)
-TICK=max(20,int(os.getenv("HQ_TICK_SECONDS","45")))
+TICK=max(60,int(os.getenv("HQ_TICK_SECONDS","300")) )
 ADMIN=os.getenv("HQ_ADMIN_TOKEN","")
 ORIGINS=[x.strip() for x in os.getenv("HQ_ALLOWED_ORIGINS","*").split(",") if x.strip()]
 AGENTS=[
@@ -137,7 +137,7 @@ async def matt_cycle():
   await _matt_cycle()
 async def run_tasks():
  if get_setting("autonomy_enabled")!="true": return
- todo=query("SELECT * FROM tasks WHERE status='queued' AND assigned_to IS NOT NULL ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,created_at LIMIT 2")
+ todo=query("SELECT * FROM tasks WHERE status='queued' AND assigned_to IS NOT NULL ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,created_at LIMIT 1")
  for task in todo:
   aid=task["assigned_to"]; spec=next((a for a in AGENTS if a[0]==aid),None)
   if not spec: continue
