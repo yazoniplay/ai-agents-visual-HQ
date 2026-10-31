@@ -229,3 +229,6 @@
 .dynamic-notch{font:inherit;cursor:pointer}
 .dynamic-notch:focus-visible{outline:2px solid #e8d5a8;outline-offset:3px}
 @media(max-width:760px){.phase-two-layout .map-frame{min-height:460px}.phase-two-layout .map-canvas{inset:24px -30px 42px;width:calc(100% + 60px)}}
+
+.revenue-zone.is-active,.command-zone.is-active,.media-zone.is-active,.research-zone.is-active,.war-zone.is-active,.factory-zone.is-active{filter:brightness(1.1) drop-shadow(0 0 7px #fff0a0)}
+.windmill-blades{transform-box:fill-box;transform-origin:center}
