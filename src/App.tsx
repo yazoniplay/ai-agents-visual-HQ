@@ -11,16 +11,16 @@ type Room = {
 };
 
 const rooms: Room[] = [
-  { id: "executive", name: "Executive Office", short: "EXECUTIVE", x: 410, y: 42, w: 250, h: 142, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company direction, priorities and high-level decisions.", crew: ["NOVA"] },
-  { id: "research", name: "Research Lab", short: "RESEARCH", x: 76, y: 42, w: 250, h: 142, color: "#a58df4", icon: "⌕", department: "Intelligence", description: "Market research, competitor intelligence and opportunity discovery.", crew: ["ATLAS"] },
-  { id: "marketing", name: "Marketing", short: "MARKETING", x: 76, y: 258, w: 250, h: 142, color: "#e78eaf", icon: "✳", department: "Growth", description: "Brand, campaigns, content and customer acquisition.", crew: ["PIXEL"] },
-  { id: "sales", name: "Sales Room", short: "SALES", x: 76, y: 474, w: 250, h: 142, color: "#70c9c0", icon: "↗", department: "Commercial", description: "Prospecting, pipeline management and customer relationships.", crew: ["ECHO"] },
-  { id: "revenue", name: "Revenue Room", short: "REVENUE", x: 410, y: 258, w: 250, h: 142, color: "#7bd5a7", icon: "＄", department: "Finance", description: "Pricing, revenue strategy, forecasting and financial performance.", crew: ["VAULT"] },
-  { id: "meeting", name: "Meeting Room", short: "MEETING", x: 410, y: 474, w: 250, h: 142, color: "#83b6ee", icon: "◎", department: "Collaboration", description: "Cross-department discussions, reviews and company decisions.", crew: ["ORBIT"] },
-  { id: "design", name: "Design Studio", short: "DESIGN", x: 744, y: 42, w: 250, h: 142, color: "#e5a47b", icon: "◈", department: "Creative", description: "Product interfaces, visual systems and creative direction.", crew: ["MUSE"] },
-  { id: "development", name: "Development", short: "DEVELOPMENT", x: 744, y: 258, w: 250, h: 142, color: "#78aef1", icon: "⌘", department: "Engineering", description: "Software architecture, implementation and technical delivery.", crew: ["BYTE"] },
-  { id: "analytics", name: "Analytics", short: "ANALYTICS", x: 744, y: 474, w: 250, h: 142, color: "#c4a0ec", icon: "▥", department: "Insights", description: "Metrics, experiments, reporting and performance analysis.", crew: ["SCOPE"] },
-  { id: "quality", name: "Quality Control", short: "QUALITY", x: 1078, y: 258, w: 90, h: 358, color: "#d5c17b", icon: "✓", department: "Review", description: "Testing, review and quality gates before work is delivered.", crew: ["PATCH"] },
+  { id: "executive", name: "Executive Office", short: "EXECUTIVE", x: 70, y: 55, w: 180, h: 150, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company direction, priorities and high-level decisions.", crew: ["NOVA"] },
+  { id: "research", name: "Research Lab", short: "RESEARCH", x: 290, y: 55, w: 180, h: 150, color: "#a58df4", icon: "⌕", department: "Intelligence", description: "Market research, competitor intelligence and opportunity discovery.", crew: ["ATLAS"] },
+  { id: "marketing", name: "Marketing", short: "MARKETING", x: 510, y: 55, w: 180, h: 150, color: "#e78eaf", icon: "✳", department: "Growth", description: "Brand, campaigns, content and customer acquisition.", crew: ["PIXEL"] },
+  { id: "sales", name: "Sales Room", short: "SALES", x: 730, y: 55, w: 180, h: 150, color: "#70c9c0", icon: "↗", department: "Commercial", description: "Prospecting, pipeline management and customer relationships.", crew: ["ECHO"] },
+  { id: "revenue", name: "Revenue Room", short: "REVENUE", x: 950, y: 55, w: 180, h: 150, color: "#7bd5a7", icon: "＄", department: "Finance", description: "Pricing, revenue strategy, forecasting and financial performance.", crew: ["VAULT"] },
+  { id: "design", name: "Design Studio", short: "DESIGN", x: 70, y: 420, w: 180, h: 150, color: "#e5a47b", icon: "◈", department: "Creative", description: "Product interfaces, visual systems and creative direction.", crew: ["MUSE"] },
+  { id: "development", name: "Development", short: "DEVELOPMENT", x: 290, y: 420, w: 180, h: 150, color: "#78aef1", icon: "⌘", department: "Engineering", description: "Software architecture, implementation and technical delivery.", crew: ["BYTE"] },
+  { id: "meeting", name: "Meeting Room", short: "MEETING", x: 510, y: 420, w: 180, h: 150, color: "#83b6ee", icon: "◎", department: "Collaboration", description: "Cross-department discussions, reviews and company decisions.", crew: ["ORBIT"] },
+  { id: "analytics", name: "Analytics", short: "ANALYTICS", x: 730, y: 420, w: 180, h: 150, color: "#c4a0ec", icon: "▥", department: "Insights", description: "Metrics, experiments, reporting and performance analysis.", crew: ["SCOPE"] },
+  { id: "quality", name: "Quality Control", short: "QUALITY", x: 950, y: 420, w: 180, h: 150, color: "#d5c17b", icon: "✓", department: "Review", description: "Testing, review and quality gates before work is delivered.", crew: ["PATCH"] },
 ];
 
 const agents = [
@@ -43,12 +43,15 @@ type LocalMessage = { id: number; room: string; body: string; time: string };
 function Crew({ x, y, color, name, selected, onClick }: {
   x: number; y: number; color: string; name: string; selected?: boolean; onClick: () => void;
 }) {
-  return <g className={`crew ${selected ? "crew-selected" : ""}`} transform={`translate(${x} ${y})`} onClick={(event) => { event.stopPropagation(); onClick(); }} role="button" tabIndex={0} aria-label={`Inspect ${name}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onClick(); }}>
-    {selected && <ellipse cx="0" cy="12" rx="29" ry="28" fill={color} opacity=".18" />}
-    <ellipse cx="0" cy="19" rx="17" ry="5" fill="#03060b" opacity=".55" />
-    <path d="M-15 8 L-15 -10 Q-15 -25 0 -25 Q15 -25 15 -10 L15 8 Q15 16 8 16 L5 16 L5 9 L-5 9 L-5 16 L-8 16 Q-15 16 -15 8Z" fill={color} stroke="#f5f7fb" strokeOpacity=".48" strokeWidth="1.4" />
-    <rect x="-1" y="-17" width="22" height="12" rx="6" fill="#a9d8e7" stroke="#e7f8ff" strokeWidth="1.4" />
-    <text x="0" y="34" textAnchor="middle" className="crew-name">{name}</text>
+  return <g className={`crew pixel-crew ${selected ? "crew-selected" : ""}`} transform={`translate(${x} ${y})`} onClick={(event) => { event.stopPropagation(); onClick(); }} role="button" tabIndex={0} aria-label={`Inspect ${name}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onClick(); }}>
+    {selected && <rect x="-15" y="-18" width="30" height="34" fill={color} opacity=".24" />}
+    <rect x="-11" y="15" width="22" height="4" fill="#243b2d" opacity=".65" />
+    <rect x="-8" y="-12" width="16" height="24" fill={color} stroke="#263c43" strokeWidth="2" />
+    <rect x="-10" y="-8" width="20" height="10" fill={color} />
+    <rect x="-7" y="-7" width="14" height="6" fill="#b9e7e9" stroke="#35515a" strokeWidth="1.5" />
+    <rect x="-8" y="10" width="5" height="6" fill="#263c43" /><rect x="3" y="10" width="5" height="6" fill="#263c43" />
+    <rect x="-11" y="-15" width="5" height="5" fill={color} /><rect x="6" y="-15" width="5" height="5" fill={color} />
+    <text x="0" y="31" textAnchor="middle" className="crew-name">{name}</text>
   </g>;
 }
 
@@ -130,22 +133,41 @@ function App() {
         <section className="map-frame" aria-label="Interactive headquarters map">
           <div className="map-vignette" /><div className="map-coordinate coordinate-a">SECTOR 01 / NORTH</div><div className="map-coordinate coordinate-b">AIHQ // 001.04</div>
           <div className="map-canvas" style={{ transform: `scale(${zoom})` }}>
-            <svg viewBox="0 0 1200 680" role="img" aria-label="Top-down map of ten connected AI HQ departments">
-              <defs><pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M 28 0 L 0 0 0 28" fill="none" stroke="#8ba1bd" strokeOpacity=".075" /></pattern><pattern id="floor" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M0 18 L18 0" stroke="#a4b4c8" strokeOpacity=".035" /></pattern><filter id="roomGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12" /></filter></defs>
-              <rect width="1200" height="680" fill="url(#grid)" />
-              <g className="corridors"><path d="M326 112 H410 M660 112 H744 M201 184 V258 M535 184 V258 M869 184 V258 M201 400 V474 M535 400 V474 M869 400 V474 M326 329 H410 M660 329 H744 M994 329 H1078 M994 545 H1078" stroke="#293a4d" strokeWidth="48" strokeLinecap="square" fill="none" /><path d="M326 112 H410 M660 112 H744 M201 184 V258 M535 184 V258 M869 184 V258 M201 400 V474 M535 400 V474 M869 400 V474 M326 329 H410 M660 329 H744 M994 329 H1078 M994 545 H1078" stroke="#587087" strokeOpacity=".36" strokeWidth="1.5" strokeDasharray="5 8" fill="none" /></g>
-              {rooms.map((room) => <g key={room.id} className={`room ${selectedRoom === room.id ? "room-active" : ""} ${search && !visibleRooms.some((item) => item.id === room.id) ? "room-dimmed" : ""}`} onClick={() => focusRoom(room.id)} role="button" tabIndex={0} aria-label={`Open ${room.name}`} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") focusRoom(room.id); }}>
-                <rect x={room.x - 4} y={room.y - 4} width={room.w + 8} height={room.h + 8} rx="15" fill={room.color} opacity={selectedRoom === room.id ? ".16" : ".055"} filter="url(#roomGlow)" />
-                <rect className="room-shell" x={room.x} y={room.y} width={room.w} height={room.h} rx="10" fill="#111c29" stroke={selectedRoom === room.id ? room.color : "#42566b"} strokeWidth={selectedRoom === room.id ? "2.5" : "1.4"} />
-                <rect x={room.x + 6} y={room.y + 6} width={room.w - 12} height={room.h - 12} rx="6" fill="url(#floor)" />
-                <path d={`M${room.x + 18} ${room.y + 34} H${room.x + room.w - 18}`} stroke={room.color} strokeOpacity=".32" />
-                <rect x={room.x + 13} y={room.y + 13} width="5" height="5" rx="1" fill={room.color} />
-                <text x={room.x + 27} y={room.y + 19} className="room-index">{room.short}</text>
-                {showLabels && <text x={room.x + 18} y={room.y + 58} className="room-name" fontSize={room.w < 100 ? "11" : "15"}>{room.name}</text>}
-                <text x={room.x + 18} y={room.y + room.h - 17} className="room-subtitle">{room.department.toUpperCase()}</text>
-                <g className="room-props" opacity=".8">{room.id === "meeting" ? <><ellipse cx={room.x + room.w / 2} cy={room.y + 91} rx="49" ry="23" fill="#1e3142" stroke="#587087" /><ellipse cx={room.x + room.w / 2} cy={room.y + 91} rx="35" ry="14" fill="#172738" stroke="#587087" /></> : <><rect x={room.x + room.w - 66} y={room.y + 58} width="42" height="24" rx="3" fill="#1d3041" stroke={room.color} strokeOpacity=".5" /><path d={`M${room.x + room.w - 60} ${room.y + 64} h30 m-30 5 h21 m-21 5 h26`} stroke={room.color} strokeOpacity=".6" strokeWidth="1.5" /></>}</g>
-              </g>)}
-              {agents.map((agent) => { const room = rooms.find((item) => item.id === agent.room)!; const x = room.id === "quality" ? 1124 : room.x + room.w / 2; const y = room.id === "quality" ? 430 : room.y + room.h / 2 + 8; return <Crew key={agent.name} x={x} y={y} color={agent.color} name={agent.name} selected={selectedAgent === agent.name} onClick={() => inspectAgent(agent.name)} />; })}
+            <svg viewBox="0 0 1200 680" role="img" aria-label="Top-down pixel-art village headquarters with ten department buildings">
+              <defs>
+                <pattern id="grass" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#6e9e58"/><rect x="4" y="5" width="3" height="3" fill="#82b96b"/><rect x="21" y="11" width="4" height="3" fill="#5c884b"/><rect x="12" y="25" width="3" height="2" fill="#91c477"/><path d="M27 27l2-3" stroke="#507c45" strokeWidth="2"/></pattern>
+                <pattern id="pathTiles" width="24" height="20" patternUnits="userSpaceOnUse"><rect width="24" height="20" fill="#c6ad78"/><path d="M0 1H24M0 10H24M0 19H24M7 1V10M18 10V19" stroke="#a68d60" strokeWidth="1.5" opacity=".65"/></pattern>
+                <pattern id="roofTiles" width="16" height="12" patternUnits="userSpaceOnUse"><path d="M0 0H16M0 6H16M8 0V6M0 6V12" stroke="#ffffff" strokeOpacity=".16" strokeWidth="2"/></pattern>
+                <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+              </defs>
+              <rect width="1200" height="680" fill="url(#grass)"/>
+              <path d="M0 330H1200" stroke="#d5bd8a" strokeWidth="62"/><path d="M0 330H1200" stroke="url(#pathTiles)" strokeWidth="54"/>
+              <path d="M160 190V330M380 190V330M600 190V330M820 190V330M1040 190V330M160 330V435M380 330V435M600 330V435M820 330V435M1040 330V435" stroke="#c9b17c" strokeWidth="34" fill="none"/>
+              <path d="M160 190V330M380 190V330M600 190V330M820 190V330M1040 190V330M160 330V435M380 330V435M600 330V435M820 330V435M1040 330V435" stroke="url(#pathTiles)" strokeWidth="28" fill="none"/>
+              <g opacity=".95">
+                <rect x="548" y="270" width="104" height="112" fill="#bba477" stroke="#8d7958" strokeWidth="3"/><rect x="556" y="278" width="88" height="96" fill="#d4c18e" stroke="#eee0b7" strokeWidth="2"/>
+                <rect x="586" y="302" width="28" height="28" fill="#78a9a1" stroke="#547e72" strokeWidth="3"/><path d="M600 304V328M588 316H612" stroke="#d6e6b8" strokeWidth="2"/>
+                <rect x="570" y="340" width="60" height="10" fill="#876f4f"/><rect x="580" y="350" width="40" height="6" fill="#6d573e"/>
+              </g>
+              {Array.from({length:18},(_,i)=>{const x=28+(i%9)*142;const y=i<9?24:610;return <g key={i} className="pixel-tree" transform={`translate(${x} ${y})`}><rect x="-5" y="18" width="10" height="18" fill="#76533a"/><rect x="-19" y="2" width="38" height="26" fill="#356b43" stroke="#285638" strokeWidth="3"/><rect x="-13" y="-5" width="25" height="20" fill="#4f874b"/><rect x="-8" y="-1" width="6" height="5" fill="#83b96a"/></g>})}
+              {rooms.map((room,index) => {
+                const roof=["#a65e43","#6d6b9d","#b65e72","#4c8c87","#b58a45","#b86c45","#527ea5","#5685a5","#8b6ba8","#a38a4e"][index];
+                return <g key={room.id} className={`room pixel-building ${selectedRoom===room.id?"room-active":""} ${search&&!visibleRooms.some(item=>item.id===room.id)?"room-dimmed":""}`} onClick={()=>focusRoom(room.id)} role="button" tabIndex={0} aria-label={`Open ${room.name}`} onKeyDown={event=>{if(event.key==="Enter"||event.key===" ")focusRoom(room.id);}}>
+                  <rect x={room.x+8} y={room.y+24} width={room.w-16} height={room.h-18} fill="#2d513c" opacity=".3" filter="url(#softShadow)"/>
+                  <rect x={room.x+12} y={room.y+38} width={room.w-24} height={room.h-48} fill="#d8c69a" stroke="#806e52" strokeWidth="4"/>
+                  <rect x={room.x+17} y={room.y+44} width={room.w-34} height={room.h-60} fill="#c7b48a" stroke="#f0dfb6" strokeWidth="2"/>
+                  <path d={`M${room.x+4} ${room.y+54} L${room.x+room.w/2} ${room.y+4} L${room.x+room.w-4} ${room.y+54} Z`} fill={roof} stroke="#493f39" strokeWidth="4"/>
+                  <path d={`M${room.x+4} ${room.y+54} L${room.x+room.w/2} ${room.y+4} L${room.x+room.w-4} ${room.y+54} Z`} fill="url(#roofTiles)"/>
+                  <path d={`M${room.x+room.w/2} ${room.y+5}V${room.y+54}`} stroke="#ffffff" strokeOpacity=".22" strokeWidth="3"/>
+                  <rect x={room.x+23} y={room.y+68} width="26" height="22" fill="#6f9c9c" stroke="#5d594b" strokeWidth="3"/><path d={`M${room.x+36} ${room.y+69}V${room.y+89}M${room.x+24} ${room.y+79}H${room.x+48}`} stroke="#d5e8d4" strokeWidth="2"/>
+                  <rect x={room.x+room.w-49} y={room.y+68} width="26" height="22" fill="#6f9c9c" stroke="#5d594b" strokeWidth="3"/><path d={`M${room.x+room.w-36} ${room.y+69}V${room.y+89}M${room.x+room.w-48} ${room.y+79}H${room.x+room.w-24}`} stroke="#d5e8d4" strokeWidth="2"/>
+                  <rect x={room.x+room.w/2-13} y={room.y+room.h-44} width="26" height="38" fill="#80583e" stroke="#594331" strokeWidth="3"/><rect x={room.x+room.w/2+6} y={room.y+room.h-25} width="3" height="3" fill="#e9c96f"/>
+                  <rect x={room.x+room.w/2-57} y={room.y+room.h-28} width="114" height="17" fill="#f0e4c4" stroke="#8e7957" strokeWidth="2"/>
+                  {showLabels&&<text x={room.x+room.w/2} y={room.y+room.h-16} textAnchor="middle" className="pixel-room-label">{room.name.toUpperCase()}</text>}
+                  <rect x={room.x+room.w/2-20} y={room.y+room.h-4} width="40" height="7" fill="#9a8057"/>
+                </g>;
+              })}
+              {rooms.map((room,index)=>{const agent=agents.find(a=>a.room===room.id)!;return <Crew key={agent.name} x={room.x+room.w/2} y={room.y+room.h-63} color={agent.color} name={agent.name} selected={selectedAgent===agent.name} onClick={()=>inspectAgent(agent.name)}/>;})}
             </svg>
           </div>
           <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> CONNECTED CORRIDOR</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
