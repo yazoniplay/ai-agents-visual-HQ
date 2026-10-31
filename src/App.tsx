@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { fetchHQSnapshot, getHQBackendUrl, subscribeHQEvents, submitHQCommand, type ConnectionState, type HQSnapshot } from "./lib/backend";
 import {
   Activity, ArrowLeft, ChevronDown, ChevronRight, CircleHelp, Clock3,
   MessageSquare, Plus, Radio, Search, Send, Settings2, X,
@@ -11,29 +12,26 @@ type Room = {
 };
 
 const rooms: Room[] = [
-  { id: "executive", name: "Executive Office", short: "EXECUTIVE", x: 90, y: 55, w: 180, h: 150, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company direction, priorities and high-level decisions.", crew: ["NOVA"] },
-  { id: "research", name: "Research Lab", short: "RESEARCH", x: 390, y: 35, w: 180, h: 150, color: "#a58df4", icon: "⌕", department: "Intelligence", description: "Market research, competitor intelligence and opportunity discovery.", crew: ["ATLAS"] },
-  { id: "marketing", name: "Marketing", short: "MARKETING", x: 760, y: 55, w: 180, h: 150, color: "#e78eaf", icon: "✳", department: "Growth", description: "Brand, campaigns, content and customer acquisition.", crew: ["PIXEL"] },
-  { id: "sales", name: "Sales Room", short: "SALES", x: 930, y: 285, w: 180, h: 150, color: "#70c9c0", icon: "↗", department: "Commercial", description: "Prospecting, pipeline management and customer relationships.", crew: ["ECHO"] },
-  { id: "revenue", name: "Revenue Room", short: "REVENUE", x: 760, y: 485, w: 180, h: 150, color: "#7bd5a7", icon: "＄", department: "Finance", description: "Pricing, revenue strategy, forecasting and financial performance.", crew: ["VAULT"] },
-  { id: "design", name: "Design Studio", short: "DESIGN", x: 390, y: 485, w: 180, h: 150, color: "#e5a47b", icon: "◈", department: "Creative", description: "Product interfaces, visual systems and creative direction.", crew: ["MUSE"] },
-  { id: "development", name: "Development", short: "DEVELOPMENT", x: 45, y: 285, w: 180, h: 150, color: "#78aef1", icon: "⌘", department: "Engineering", description: "Software architecture, implementation and technical delivery.", crew: ["BYTE"] },
-  { id: "meeting", name: "Meeting Room", short: "MEETING", x: 505, y: 250, w: 180, h: 150, color: "#83b6ee", icon: "◎", department: "Collaboration", description: "Cross-department discussions, reviews and company decisions.", crew: ["ORBIT"] },
-  { id: "analytics", name: "Analytics", short: "ANALYTICS", x: 990, y: 55, w: 180, h: 150, color: "#c4a0ec", icon: "▥", department: "Insights", description: "Metrics, experiments, reporting and performance analysis.", crew: ["SCOPE"] },
-  { id: "quality", name: "Quality Control", short: "QUALITY", x: 75, y: 485, w: 180, h: 150, color: "#d5c17b", icon: "✓", department: "Review", description: "Testing, review and quality gates before work is delivered.", crew: ["PATCH"] },
+  { id: "revenue", name: "Revenue Bay & Pastures", short: "REVENUE", x: 65, y: 85, w: 255, h: 190, color: "#7bd5a7", icon: "₿", department: "Finance", description: "Revenue streams, cash flow, platform payouts and operating budget.", crew: ["VAULT", "ECHO"] },
+  { id: "executive", name: "Command Center", short: "COMMAND", x: 535, y: 45, w: 285, h: 205, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company-wide operations, budget, agent health and human decisions.", crew: ["MATT"] },
+  { id: "marketing", name: "Media Studio", short: "MEDIA", x: 955, y: 65, w: 220, h: 225, color: "#e78eaf", icon: "✳", department: "Marketing", description: "Content production, social publishing and campaign performance.", crew: ["PIXEL", "MUSE"] },
+  { id: "research", name: "Research Lab", short: "RESEARCH", x: 770, y: 365, w: 245, h: 175, color: "#70c9c0", icon: "⌕", department: "Intelligence", description: "Business idea generation, customer discovery and validation logs.", crew: ["FINN", "PHAM"] },
+  { id: "meeting", name: "War Room", short: "WAR ROOM", x: 1115, y: 585, w: 225, h: 180, color: "#b97863", icon: "◎", department: "Operations", description: "Agent syncs, strategic meetings and cross-team decisions.", crew: ["DENNIS", "LUKE"] },
+  { id: "development", name: "Factory", short: "FACTORY", x: 100, y: 620, w: 255, h: 185, color: "#c96b53", icon: "⌘", department: "Production", description: "Product execution, creative assets and delivery pipelines.", crew: ["MAVERICK", "PATCH"] },
 ];
 
 const agents = [
-  { name: "NOVA", role: "Chief Executive", room: "executive", color: "#e8bd72", focus: "Strategy and company priorities" },
-  { name: "ATLAS", role: "Research Director", room: "research", color: "#a58df4", focus: "Market intelligence and opportunity discovery" },
-  { name: "PIXEL", role: "Marketing Lead", room: "marketing", color: "#e78eaf", focus: "Positioning, campaigns and content" },
-  { name: "ECHO", role: "Sales Director", room: "sales", color: "#70c9c0", focus: "Pipeline and customer acquisition" },
-  { name: "VAULT", role: "Finance Lead", room: "revenue", color: "#7bd5a7", focus: "Pricing and financial planning" },
-  { name: "ORBIT", role: "Operations Coordinator", room: "meeting", color: "#83b6ee", focus: "Cross-team coordination" },
-  { name: "MUSE", role: "Creative Director", room: "design", color: "#e5a47b", focus: "Product and visual design" },
-  { name: "BYTE", role: "Software Engineer", room: "development", color: "#78aef1", focus: "Architecture and implementation" },
-  { name: "SCOPE", role: "Data Analyst", room: "analytics", color: "#c4a0ec", focus: "Metrics and performance analysis" },
-  { name: "PATCH", role: "QA Engineer", room: "quality", color: "#d5c17b", focus: "Testing and quality review" },
+  { name: "MATT", role: "Chief Executive", room: "executive", color: "#e8bd72", focus: "Company strategy, priorities and approvals" },
+  { name: "DENNIS", role: "Operations Lead", room: "meeting", color: "#b97863", focus: "Agent coordination and operating cadence" },
+  { name: "FINN", role: "Research Analyst", room: "research", color: "#70c9c0", focus: "Demand research and business validation" },
+  { name: "LUKE", role: "Meeting Facilitator", room: "meeting", color: "#83b6ee", focus: "Cross-team decisions and meeting notes" },
+  { name: "MAVERICK", role: "Product Builder", room: "development", color: "#c96b53", focus: "Product execution and production pipelines" },
+  { name: "PHAM", role: "Market Researcher", room: "research", color: "#a58df4", focus: "Competitor research and customer insights" },
+  { name: "PIXEL", role: "Content Producer", room: "marketing", color: "#e78eaf", focus: "Social content and campaign production" },
+  { name: "VAULT", role: "Finance Lead", room: "revenue", color: "#7bd5a7", focus: "Revenue, expenses and platform payouts" },
+  { name: "ECHO", role: "Growth Strategist", room: "revenue", color: "#70b5a8", focus: "Revenue channels and customer acquisition" },
+  { name: "MUSE", role: "Creative Director", room: "marketing", color: "#e5a47b", focus: "Creative direction and brand assets" },
+  { name: "PATCH", role: "Quality Engineer", room: "development", color: "#d5c17b", focus: "Quality checks and delivery review" },
 ];
 
 type Task = { id: number; title: string; room: string; status: "Queued" | "In progress" | "Done"; created: string };
