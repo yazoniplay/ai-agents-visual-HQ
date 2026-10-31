@@ -86,29 +86,90 @@ function parse(raw:string):any{
   catch(secondError){throw new Error("Model JSON parse failed after repair: "+String(secondError).slice(0,220));}
  }
 }
-async function model(system:string,prompt:string,provider:string,modelOverride?:string,webSearch:boolean=false):Promise<string>{
+async function runAgentTool(name:string,args:any):Promise<any>{
+ const path=String(args?.path||"").replace(/^\\/+/, "");
+ if(path.split("/").some((part:string)=>part===".."||part==="."))throw new Error("Invalid repository path.");
+ if(name==="github_list_files"){
+  const suffix=path?"/"+path.split("/").map(encodeURIComponent).join("/"):"";
+  const response=await fetch("https://api.github.com/repos/yazoniplay/HookEngine/contents"+suffix,{headers:{Accept:"application/vnd.github+json","User-Agent":"TonkasTownAgent"}});
+  const body=await response.text();if(!response.ok)throw new Error("GitHub file listing returned "+response.status+": "+body.slice(0,240));
+  const data=JSON.parse(body);const entries=Array.isArray(data)?data:[data];
+  return entries.slice(0,150).map((item:any)=>({name:item.name,path:item.path,type:item.type,size:item.size||0}));
+ }
+ if(name==="github_read_file"){
+  if(!path)throw new Error("A file path is required.");
+  const url="https://raw.githubusercontent.com/yazoniplay/HookEngine/main/"+path.split("/").map(encodeURIComponent).join("/");
+  const response=await fetch(url,{headers:{"User-Agent":"TonkasTownAgent"},signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw new Error("GitHub file read returned "+response.status+" for "+path);
+  const content=await response.text();
+  return {repository:"yazoniplay/HookEngine",path,content:content.slice(0,28000),truncated:content.length>28000};
+ }
+ if(name==="github_recent_commits"){
+  const response=await fetch("https://api.github.com/repos/yazoniplay/HookEngine/commits?per_page=8",{headers:{Accept:"application/vnd.github+json","User-Agent":"TonkasTownAgent"}});
+  const body=await response.text();if(!response.ok)throw new Error("GitHub commits returned "+response.status+": "+body.slice(0,240));
+  return JSON.parse(body).map((item:any)=>({sha:String(item.sha).slice(0,12),message:String(item.commit?.message||"").slice(0,300),date:item.commit?.author?.date||"",author:item.author?.login||item.commit?.author?.name||"unknown"}));
+ }
+ throw new Error("Tool is not available.");
+}
+const GITHUB_FUNCTIONS=[
+ {name:"github_list_files",description:"List paths in the public yazoniplay/HookEngine repository. Read-only.",parameters:{type:"OBJECT",properties:{path:{type:"STRING",description:"Optional directory path, for example src or supabase/functions."}}}},
+ {name:"github_read_file",description:"Read a text file from the public yazoniplay/HookEngine repository on main. Read-only; maximum 28 KB.",parameters:{type:"OBJECT",properties:{path:{type:"STRING",description:"Repository-relative file path."}},required:["path"]}},
+ {name:"github_recent_commits",description:"Read the eight latest commits from yazoniplay/HookEngine. Read-only.",parameters:{type:"OBJECT",properties:{}}}
+];
+async function model(system:string,prompt:string,provider:string,modelOverride?:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<string>{
  const p=provider.toLowerCase(),signal=AbortSignal.timeout(70000);
  if(p==="ashnaai"||p==="groq"||p==="ollama"){
   let base="",key="",modelId="";
   if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-sonnet-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
   if(p==="groq"){key=Deno.env.get("GROQ_API_KEY")||"";base="https://api.groq.com/openai/v1";modelId=modelOverride||Deno.env.get("GROQ_MODEL")||"llama-3.1-8b-instant";if(!key)throw new Error("GROQ_API_KEY missing in Supabase Function Secrets.");}
-  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"").replace(/\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"qwen3:4b";if(!base)throw new Error("OLLAMA_BASE_URL must point to an Ollama endpoint reachable from Supabase.");}
+  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"").replace(/\\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"qwen3:4b";if(!base)throw new Error("OLLAMA_BASE_URL must point to an Ollama endpoint reachable from Supabase.");}
   const h:Record<string,string>={"Content-Type":"application/json"};if(key)h.Authorization="Bearer "+key;
-  const r=await fetch(base.replace(/\/+$/,"")+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:modelId,temperature:0.3,max_tokens:2200,messages:[{role:"system",content:system},{role:"user",content:prompt}]}),signal});
+  const r=await fetch(base.replace(/\\/+$/,"")+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:modelId,temperature:0.3,max_tokens:2200,messages:[{role:"system",content:system},{role:"user",content:prompt}]}),signal});
   const t=await r.text();if(!r.ok)throw new Error(p+" "+r.status+": "+t.slice(0,500));
   const data=JSON.parse(t),content=data.choices?.[0]?.message?.content;if(typeof content!=="string"||!content.trim())throw new Error(p+" returned an empty completion.");return content;
  }
  if(p==="gemini"){
   const key=Deno.env.get("GEMINI_API_KEY");if(!key)throw new Error("GEMINI_API_KEY missing in Supabase Function Secrets.");
   const modelId=modelOverride||"gemini-3.5-flash-lite";
-  const requestBody:any={systemInstruction:{parts:[{text:system}]},contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.3,maxOutputTokens:2200}};
-  if(webSearch)requestBody.tools=[{google_search:{}},{url_context:{}}];
-  else requestBody.generationConfig.responseMimeType="application/json";
-  const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(modelId)+":generateContent?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(requestBody),signal});
-  const t=await r.text();if(!r.ok)throw new Error("Gemini "+r.status+": "+t.slice(0,500));
-  const candidate=JSON.parse(t).candidates?.[0];const content=candidate?.content?.parts?.map((x:any)=>x.text||"").join("");if(typeof content!=="string"||!content.trim())throw new Error("Gemini returned an empty completion.");
-  if(webSearch){const grounding=candidate?.groundingMetadata||{};const sources=(grounding.groundingChunks||[]).map((chunk:any)=>chunk.web).filter((web:any)=>web?.uri).map((web:any)=>({title:String(web.title||web.uri),url:String(web.uri)}));if(sources.length||grounding.webSearchQueries?.length){try{const payload=parse(content);payload.web_sources=sources;payload.web_search_queries=grounding.webSearchQueries||[];return JSON.stringify(payload);}catch{return content;}}}
-  return content;
+  const tools:any[]=[];
+  if(webSearch)tools.push({google_search:{}},{url_context:{}});
+  if(githubAccess)tools.push({function_declarations:GITHUB_FUNCTIONS});
+  const contents:any[]=[{role:"user",parts:[{text:prompt}]}];
+  const collectedSources:any[]=[];
+  const collectedQueries:string[]=[];
+  for(let round=0;round<5;round++){
+   const requestBody:any={systemInstruction:{parts:[{text:system}]},contents,generationConfig:{temperature:0.3,maxOutputTokens:2200}};
+   if(tools.length)requestBody.tools=tools;
+   else requestBody.generationConfig.responseMimeType="application/json";
+   const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(modelId)+":generateContent?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(requestBody),signal});
+   const t=await r.text();if(!r.ok)throw new Error("Gemini "+r.status+": "+t.slice(0,500));
+   const candidate=JSON.parse(t).candidates?.[0];if(!candidate)throw new Error("Gemini returned no candidate.");
+   const grounding=candidate.groundingMetadata||{};
+   for(const chunk of grounding.groundingChunks||[]){const web=chunk.web;if(web?.uri&&!collectedSources.some(source=>source.url===web.uri))collectedSources.push({title:String(web.title||web.uri),url:String(web.uri)});}
+   for(const query of grounding.webSearchQueries||[])if(!collectedQueries.includes(query))collectedQueries.push(query);
+   const parts=candidate.content?.parts||[];
+   const calls=parts.filter((part:any)=>part.functionCall?.name);
+   if(calls.length){
+    if(!githubAccess)throw new Error("Gemini requested a repository tool that is not enabled.");
+    contents.push(candidate.content);
+    const responses=[];
+    for(const part of calls.slice(0,4)){
+     const call=part.functionCall;
+     let result:any;
+     try{result=await runAgentTool(String(call.name),call.args||{});}catch(error){result={error:String(error).slice(0,500)};}
+     responses.push({functionResponse:{name:String(call.name),response:result}});
+    }
+    contents.push({role:"user",parts:responses});
+    continue;
+   }
+   const content=parts.map((part:any)=>part.text||"").join("");
+   if(typeof content!=="string"||!content.trim())throw new Error("Gemini returned an empty completion.");
+   if(collectedSources.length||collectedQueries.length){
+    try{const payload=parse(content);payload.web_sources=collectedSources;payload.web_search_queries=collectedQueries;return JSON.stringify(payload);}catch{return content;}
+   }
+   return content;
+  }
+  throw new Error("Gemini exceeded the repository tool-call limit for one task.");
  }
  throw new Error("Provider must be ashnaai, gemini, groq, or ollama.");
 }
