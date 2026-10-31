@@ -147,7 +147,9 @@ async def run_tasks():
   log("task.started",spec[1],"Started: "+task["title"],{"task_id":task["id"]})
   try:
    system=f"You are {spec[1]}, {spec[2]}. Scope: {spec[4]}. Complete the internal task as a real written deliverable. No internet, shell, files, or external accounts are available. Never claim to have published, purchased, contacted anyone, or changed an account. If an external action is needed, prepare it for approval. Return JSON only: {{\"result\":\"deliverable or precise blocker\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\"}}."
-   provider_map=json.loads(os.getenv("HQ_AGENT_PROVIDER_MAP","{}"))\n   provider=provider_map.get(aid,os.getenv("HQ_DEFAULT_PROVIDER","openai"))\n   result=parse_json(await llm(system,json.dumps({"task":task["title"],"instructions":task["description"],"goal":get_setting("company_goal")}),provider))
+   provider_map=json.loads(os.getenv("HQ_AGENT_PROVIDER_MAP","{}"))
+   provider=provider_map.get(aid,os.getenv("HQ_DEFAULT_PROVIDER","openai"))
+   result=parse_json(await llm(system,json.dumps({"task":task["title"],"instructions":task["description"],"goal":get_setting("company_goal")}),provider))
    status=result.get("status","completed")
    if status not in ("completed","blocked","needs_review"): status="completed"
    with db() as c:
