@@ -351,6 +351,20 @@ const blocked=(x,y)=>{
 const NODES={A:[318,120],B:[318,176],D:[256,176],C:[216,176],L:[186,176],P:[140,176],N:[92,176],H:[350,176],V:[440,176],E:[256,236],F:[256,303],G:[202,303],M:[186,96],Md:[186,70],R:[140,44],Fd:[92,232],J:[350,238],K:[394,238]};
 const EDGES=[["A","B"],["B","D"],["B","H"],["H","V"],["D","C"],["C","L"],["L","P"],["P","N"],["D","E"],["E","F"],["F","G"],["L","M"],["M","Md"],["P","R"],["N","Fd"],["H","J"],["J","K"]];
 const adj={};EDGES.forEach(([a,b])=>{(adj[a]=adj[a]||[]).push(b);(adj[b]=adj[b]||[]).push(a);});
+function findRoute(from,to){
+ if(!from||!to||from===to)return [];
+ const queue=[[from,[]]],seen=new Set([from]);
+ while(queue.length){
+  const [node,path]=queue.shift();
+  for(const next of (adj[node]||[])){
+   if(seen.has(next))continue;
+   const nextPath=path.concat(next);
+   if(next===to)return nextPath;
+   seen.add(next);queue.push([next,nextPath]);
+  }
+ }
+ return [to];
+}
 const AG=[
  {n:"Maverick",shirt:"#3a7bd5",hair:"#6b3a1e",at:"Md"},
  {n:"Luke",shirt:"#2f6fb0",hair:"#e8b030",at:"Fd"},
@@ -362,17 +376,32 @@ const AG=[
  {n:"Trevor",shirt:"#bd7a35",hair:"#49321e",at:"K"},
  {n:"Ivy",shirt:"#d36b91",hair:"#4a2b2b",at:"C"},
  {n:"Noah",shirt:"#3f8c78",hair:"#242424",at:"A"}
-].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,wait:999,spd:13+Math.random()*5,ph:Math.random()*6,destination:a.at,mv:false}));
-window.__tonkasSetAgents=function(list){
+].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,route:[],wait:999,spd:13+Math.random()*5,ph:Math.random()*6,destination:a.at,mv:false,status:"idle",role:"",objective:"",currentTask:"",lastMessage:""}));
+window.__tonkasSetAgents=function(list,tasks,messages){
  const destinations={command:"A",research:"C",factory:"Fd",media:"Md",revenue:"R",war:"K"};
- (list||[]).forEach(agent=>{
-  const node=destinations[agent.department]||"A";
-  let sprite=AG.find(a=>a.n===agent.name);
-  if(!sprite){sprite={n:agent.name,shirt:"#6f7d8a",hair:"#38291f",at:node,x:NODES[node][0],y:NODES[node][1],cur:node,prev:null,to:null,wait:999,spd:15,ph:0};AG.push(sprite);}
-  sprite.destination=node;
-  if(sprite.cur!==node){if(sprite.to!==node){sprite.to=node;sprite.wait=0;}}
-  else{sprite.to=null;sprite.wait=999;}
+ const taskMap=new Map((tasks||[]).map(t=>[String(t.id),t.title]));
+ const lastMessage=new Map();
+ (messages||[]).forEach(m=>{
+  if(m.sender_id)lastMessage.set(String(m.sender_id),String(m.content||"").slice(0,260));
+  if(m.recipient_id&&m.recipient_id!=="all")lastMessage.set(String(m.recipient_id),"From "+String(m.sender_id)+": "+String(m.content||"").slice(0,220));
  });
+ (list||[]).forEach(agent=>{
+  const home=destinations[agent.department]||"A";
+  const node=agent.status==="meeting"?"K":home;
+  let sprite=AG.find(a=>a.n.toLowerCase()===String(agent.name).toLowerCase());
+  if(!sprite){sprite={n:agent.name,shirt:"#6f7d8a",hair:"#38291f",at:node,x:NODES[node][0],y:NODES[node][1],cur:node,prev:null,to:null,route:[],wait:999,spd:15,ph:0,destination:node,mv:false,status:"idle",role:"",objective:"",currentTask:"",lastMessage:""};AG.push(sprite);}
+  sprite.role=String(agent.role||"");
+  sprite.objective=String(agent.objective||"");
+  sprite.status=String(agent.status||"idle");
+  sprite.currentTask=taskMap.get(String(agent.current_task||""))||"";
+  sprite.lastMessage=lastMessage.get(String(agent.id))||"";
+  if(sprite.destination!==node||sprite.cur!==node){
+   sprite.destination=node;
+   sprite.route=findRoute(sprite.cur,node);
+   sprite.to=null;
+  }else if(!sprite.route?.length){sprite.destination=node;}
+ });
+};
 };
 const me={x:318,y:126,face:1,ph:0,target:null,autoEnter:null};
 const pen=[];
@@ -470,16 +499,18 @@ function step(dt){
   for(const d of DOORS){const e=Math.hypot(d.x-me.x,d.y-me.y);if(e<best){best=e;near=d;}}
   let nearA=null,ba=16;for(const a of AG){const e=Math.hypot(a.x-me.x,a.y-me.y);if(e<ba){ba=e;nearA=a;}}
   focus=near&&(!nearA||best<=ba)?{t:"door",o:near}:(nearA?{t:"agent",o:nearA}:null);
-  // agents
+  // Agents follow real department/meeting destinations supplied by the live runtime.
   for(const a of AG){
-    if(a.to){
-      const [tx,ty]=NODES[a.to],ex=tx-a.x,ey=ty-a.y,d=Math.hypot(ex,ey);
-      if(d<1.5){a.prev=a.cur;a.cur=a.to;a.to=null;a.wait=a.destination?999:1+Math.random()*5;}
+    if(a.route&&a.route.length){
+      const next=a.route[0],point=NODES[next]||NODES[a.destination]||NODES.A;
+      const ex=point[0]-a.x,ey=point[1]-a.y,d=Math.hypot(ex,ey);
+      if(d<1.4){a.prev=a.cur;a.cur=next;a.route.shift();a.mv=false;}
       else{a.x+=ex/d*a.spd*dt;a.y+=ey/d*a.spd*dt;a.mv=true;}
-    }else if(a.destination&&a.cur===a.destination){a.mv=false;a.wait=999;}
-    else{
-      a.mv=false;a.wait-=dt;
-      if(a.wait<=0){const opts=adj[a.cur].filter(n=>n!==a.prev);const pool=opts.length?opts:adj[a.cur];a.to=pool[Math.floor(Math.random()*pool.length)];}
+    }else if(a.cur!==a.destination){
+      a.route=findRoute(a.cur,a.destination);
+      a.mv=false;
+    }else{
+      a.mv=false;
     }
   }
   // animals
@@ -531,7 +562,7 @@ function draw(){
   const SX=x=>(x-camx)*Z,SY=y=>(y-camy)*Z;
   const ps=Math.max(7,Z*2.5);
   DOORS.forEach(d=>plaque(d.name,SX(d.lab[0]),SY(d.lab[1]),ps));
-  AG.forEach(a=>nameTag(a.n,SX(a.x),SY(a.y-18),Math.max(6,Z*2.2)));
+  AG.forEach(a=>{nameTag(a.n,SX(a.x),SY(a.y-18),Math.max(6,Z*2.2));if(a.status&&a.status!=="idle")nameTag(a.status.toUpperCase().replace("_"," "),SX(a.x),SY(a.y-27),Math.max(5,Z*1.7),a.status==="blocked"||a.status==="needs_setup"?"#ff8b74":"#b9f1a4");});
   nameTag("You",SX(me.x),SY(me.y-24),Math.max(6,Z*2.2),"#d9b8ff");
   if(focus)nameTag(focus.t==="door"?"[E] enter":"[E] talk",SX(me.x)+Z*10,SY(me.y-28),Math.max(6,Z*2),"#fff");
 }
@@ -573,20 +604,16 @@ function updateEnter(){
 enterBtn.addEventListener("click",()=>{if(!focus)return;if(focus.t==="door")open(focus.o.id);else talk(focus.o);});
 overlay.addEventListener("pointerdown",e=>{if(e.target===overlay)close();});
 /* ---------- dialogue + quick travel ---------- */
-const LINES={
- Maverick:"Day 18 of 30 on the build guide. I'm stuck behind Trevor's gate #153, so I'm weeding until it clears.",
- Luke:"Standing by. Nothing on my list today. Want me to take one of Dennis's ideas?",
- Pham:"Still waiting on credentials before I can start. Give me the keys and I'm off.",
- Finn:"No new Fiverr orders this cycle. I'll flag you the moment one lands.",
- Dennis:"I've got 8 ideas waiting on your verdict. The Research Lab has the full reports.",
- Bunc:"Print products are gated until Trevor clears #114. The slogan bank is ready to go."
-};
+const LINES={};
+const dlg=};
 const dlg=document.getElementById("dlg");let dtimer=null;
 function talk(a){
   me.target=null;keys={};dlgOpen=true;dlg.style.display="block";
   dlg.querySelector(".nm").textContent=a.n;
-  const tx=dlg.querySelector(".tx"),full=LINES[a.n]||"...";dlg.dataset.full=full;tx.textContent="";
-  let i=0;clearInterval(dtimer);dtimer=setInterval(()=>{i++;tx.textContent=full.slice(0,i);if(i>=full.length)clearInterval(dtimer);},22);
+  const labels={idle:"At assigned workstation.",planning:"Planning the next company cycle.",working:"Working on the assigned task.",queued:"Waiting for the worker queue.",meeting:"In a team discussion.",reviewing:"Reviewing a deliverable.",blocked:"Blocked and needs attention.",needs_setup:"Needs configuration before work can continue."};
+  const lines=[a.role,labels[a.status]||"Runtime status: "+a.status,a.currentTask?"Current task: "+a.currentTask:"No active task.",a.lastMessage?"Latest team message: "+a.lastMessage:"",a.objective?"Responsibility: "+a.objective:""].filter(Boolean);
+  const tx=dlg.querySelector(".tx"),full=lines.join("\n\n");dlg.dataset.full=full;tx.textContent="";
+  let i=0;clearInterval(dtimer);dtimer=setInterval(()=>{i++;tx.textContent=full.slice(0,i);if(i>=full.length)clearInterval(dtimer);},12);
 }
 function closeDlg(){
   const tx=dlg.querySelector(".tx"),full=dlg.dataset.full||"";
@@ -820,7 +847,7 @@ async function command(type,extra){
 function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const n=document.createElement("div");n.id="hql-error";n.className="hql-error";n.textContent=msg;$("hql-body").prepend(n);}}
 function render(s){
  latest=s;
- if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[]);
+ if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[],s.tasks||[],s.messages||[]);
  const active=(s.agents||[]).filter(a=>["working","planning","reviewing"].includes(a.status)).length;
  const waiting=(s.approvals||[]).length;
  setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
@@ -841,12 +868,15 @@ function render(s){
  html+='</div>';});
  html+='</div>';
  html+='<div><div class="hql-section">WORK QUEUE</div><div class="hql-list">';
- (s.tasks||[]).slice(0,15).forEach(t=>{html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(t.result?'<small style="grid-column:1/-1">'+esc(t.result).slice(0,600)+'</small>':"")+'</article>';});
+ (s.tasks||[]).slice(0,15).forEach(t=>{const result=esc(t.result||"").replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(result?'<small style="grid-column:1/-1;white-space:pre-wrap">'+result.slice(0,900)+'</small>':"")+'</article>';});
+ html+='</div></div>';
+ html+='<div><div class="hql-section">TEAM CONVERSATIONS</div><div class="hql-msg">';
+ (s.messages||[]).slice(-18).reverse().forEach(m=>{html+='<article><b>'+esc(m.sender_id)+' → '+esc(m.recipient_id||"channel") +'</b><br>'+esc(m.content)+'<br><small>'+esc(m.created_at)+'</small></article>';});
  html+='</div></div>';
  html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
  (s.activity||[]).slice(-18).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
  html+='</div></div>';
- html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Provider keys belong in Supabase Function Secrets, never here.</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Use the current tonkas_admin_token from Supabase Vault here. Never put the Gemini API key in this field or in chat. Provider keys belong in Supabase Function Secrets.</div></div>';
  html+='<div id="hql-error" class="hql-error"></div>';
  $("hql-body").innerHTML=html;
 }
@@ -861,6 +891,7 @@ $("hql-body").addEventListener("click",async e=>{
 });
 async function refresh(){
  if(!base){setState("offline","HQ NOT CONNECTED");return;}
+ if(!token){setState("offline","ADD HQ OWNER TOKEN IN SETTINGS");return;}
  if(busy)return;busy=true;
  try{const s=await api("/api/hq/snapshot");render(s);}
  catch(e){setState("offline","HQ CONNECTION ERROR");if(panel.classList.contains("open"))showError(e.message);}
