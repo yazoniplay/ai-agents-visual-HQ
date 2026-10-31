@@ -351,6 +351,7 @@ async function runCharacterBrain():Promise<any>{
  return {updated:states.length,provider:generated.provider,speaking:utterances.length};
 }
 async function runTeamMeeting():Promise<any>{
+ if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};
  const last=await setting("last_team_meeting_at","");
  if(last&&Date.now()-Date.parse(last)<5*60*1000)return {skipped:true,reason:"meeting_interval_not_reached"};
  await setSetting("last_team_meeting_at",now());
