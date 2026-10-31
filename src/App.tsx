@@ -167,7 +167,7 @@ function App() {
                   <rect x={room.x+room.w/2-20} y={room.y+room.h-4} width="40" height="7" fill="#9a8057"/>
                 </g>;
               })}
-              {rooms.map((room,index)=>{const agent=agents.find(a=>a.room===room.id)!;return <Crew key={agent.name} x={room.x+room.w/2} y={room.y+room.h-63} color={agent.color} name={agent.name} selected={selectedAgent===agent.name} onClick={()=>inspectAgent(agent.name)}/>;})}
+              {rooms.map((room)=>{const agent=agents.find(a=>a.room===room.id)!;return <Crew key={agent.name} x={room.x+room.w/2} y={room.y+room.h-63} color={agent.color} name={agent.name} selected={selectedAgent===agent.name} onClick={()=>inspectAgent(agent.name)}/>;})}
             </svg>
           </div>
           <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> CONNECTED CORRIDOR</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
