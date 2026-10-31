@@ -381,7 +381,7 @@ window.__tonkasSetAgents=function(list,tasks,messages){
  const destinations={command:"A",research:"C",factory:"Fd",media:"Md",revenue:"R",war:"K"};
  const taskMap=new Map((tasks||[]).map(t=>[String(t.id),t.title]));
  const lastMessage=new Map();
- (messages||[]).forEach(m=>{
+ ([...(messages||[])].reverse()).forEach(m=>{
   if(m.sender_id)lastMessage.set(String(m.sender_id),String(m.content||"").slice(0,260));
   if(m.recipient_id&&m.recipient_id!=="all")lastMessage.set(String(m.recipient_id),"From "+String(m.sender_id)+": "+String(m.content||"").slice(0,220));
  });
@@ -820,6 +820,7 @@ const safeSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){/* storage blocked
 const safeGetSession=k=>{try{return sessionStorage.getItem(k)||"";}catch(_){return "";}};
 const safeSetSession=(k,v)=>{try{if(v)sessionStorage.setItem(k,v);else sessionStorage.removeItem(k);}catch(_){/* session storage may be disabled */}};
 let base=safeGet("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=safeGetSession("tonkas_admin_token")||safeGet("tonkas_admin_token"), latest=null, busy=false;
+if(token)safeSetSession("tonkas_admin_token",token);try{localStorage.removeItem("tonkas_admin_token");}catch(_){}
 if(/onrender\\.com$/i.test(base))base=DEFAULT_SUPABASE_URL;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function setState(state,label){trigger.dataset.state=state;const el=$("hql-label");if(el)el.textContent=label;}
@@ -850,7 +851,7 @@ function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const
 function render(s){
  latest=s;
  if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[],s.tasks||[],s.messages||[]);
- const active=(s.agents||[]).filter(a=>["working","planning","reviewing"].includes(a.status)).length;
+ const active=(s.agents||[]).filter(a=>["working","planning","reviewing","meeting"].includes(a.status)).length;
  const waiting=(s.approvals||[]).length;
  setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
  const providers=s.provider_status||{};
@@ -873,10 +874,10 @@ function render(s){
  (s.tasks||[]).slice(0,15).forEach(t=>{const result=esc(t.result||"").replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');html+='<article class="hql-agent"><b>'+esc(t.title)+'</b><span class="hql-tag">'+esc(t.status)+'</span><small>'+esc(t.assigned_to||"Unassigned")+' · '+esc(t.priority)+'</small>'+(result?'<small style="grid-column:1/-1;white-space:pre-wrap">'+result.slice(0,900)+'</small>':"")+'</article>';});
  html+='</div></div>';
  html+='<div><div class="hql-section">TEAM CONVERSATIONS</div><div class="hql-msg">';
- (s.messages||[]).slice(-18).reverse().forEach(m=>{html+='<article><b>'+esc(m.sender_id)+' → '+esc(m.recipient_id||"channel") +'</b><br>'+esc(m.content)+'<br><small>'+esc(m.created_at)+'</small></article>';});
+ (s.messages||[]).slice(0,18).forEach(m=>{html+='<article><b>'+esc(m.sender_id)+' → '+esc(m.recipient_id||"channel") +'</b><br>'+esc(m.content)+'<br><small>'+esc(m.created_at)+'</small></article>';});
  html+='</div></div>';
  html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
- (s.activity||[]).slice(-18).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
+ (s.activity||[]).slice(0,18).forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
  html+='</div></div>';
  html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Paste the current tonkas_admin_token from Supabase Vault. This token is saved only for this browser session. Never put the Gemini API key in this field or in chat; provider keys belong in Supabase Function Secrets.</div></div>';
  html+='<div id="hql-error" class="hql-error"></div>';
