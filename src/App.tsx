@@ -143,12 +143,12 @@ function App() {
               </defs>
               <rect width="1200" height="680" fill="url(#grass)"/>
               <path d="M0 0H1200V680H0Z" fill="none" stroke="#527e49" strokeWidth="18"/>
-              <path d="M0 225C115 208 155 248 240 274S390 322 490 365S660 424 760 388S940 306 1200 342" fill="none" stroke="#4d9b9e" strokeWidth="76" opacity=".92"/>
-              <path d="M0 225C115 208 155 248 240 274S390 322 490 365S660 424 760 388S940 306 1200 342" fill="none" stroke="url(#water)" strokeWidth="66"/>
+              <path d="M0 225C115 195 190 205 240 240S330 270 385 235S445 205 490 220" fill="none" stroke="#4d9b9e" strokeWidth="76" opacity=".92"/>
+              <path d="M0 225C115 195 190 205 240 240S330 270 385 235S445 205 490 220" fill="none" stroke="url(#water)" strokeWidth="66"/>
               <path d="M205 244l30 27 22 22M730 391l26-9 25-17" stroke="#8c6848" strokeWidth="12" fill="none"/>
               <path d="M205 244l30 27 22 22M730 391l26-9 25-17" stroke="#d4b77c" strokeWidth="8" fill="none"/>
-              <path d="M565 0C560 85 610 132 590 208S536 291 600 360S702 470 680 680" fill="none" stroke="#b99d6c" strokeWidth="54" strokeLinecap="round"/>
-              <path d="M565 0C560 85 610 132 590 208S536 291 600 360S702 470 680 680" fill="none" stroke="url(#pathTiles)" strokeWidth="46" strokeLinecap="round"/>
+              <path d="M690 0C680 70 720 125 790 165S910 215 980 210S1100 180 1200 205" fill="none" stroke="#b99d6c" strokeWidth="54" strokeLinecap="round"/>
+              <path d="M690 0C680 70 720 125 790 165S910 215 980 210S1100 180 1200 205" fill="none" stroke="url(#pathTiles)" strokeWidth="46" strokeLinecap="round"/>
               <path d="M0 448C140 435 222 465 330 445S500 402 600 360S820 244 950 245S1090 260 1200 235" fill="none" stroke="#b99d6c" strokeWidth="38" strokeLinecap="round"/>
               <path d="M0 448C140 435 222 465 330 445S500 402 600 360S820 244 950 245S1090 260 1200 235" fill="none" stroke="url(#pathTiles)" strokeWidth="31" strokeLinecap="round"/>
               <path d="M180 205C230 160 300 150 390 140M650 165C730 180 790 215 860 250M680 435C710 480 735 520 790 560M335 450C355 495 365 540 390 570M220 360C300 360 390 365 505 325M685 320C790 310 865 330 930 360" fill="none" stroke="#b99d6c" strokeWidth="30" strokeLinecap="round"/>
@@ -181,7 +181,7 @@ function App() {
               {rooms.map((room)=>{const agent=agents.find(a=>a.room===room.id)!;return <Crew key={agent.name} x={room.x+room.w/2} y={room.y+room.h-63} color={agent.color} name={agent.name} selected={selectedAgent===agent.name} onClick={()=>inspectAgent(agent.name)}/>;})}
             </svg>
           </div>
-          <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> CONNECTED CORRIDOR</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
+          <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> VILLAGE PATHS</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
         </section>
 
         <aside className="side-panel phase-two-panel">
