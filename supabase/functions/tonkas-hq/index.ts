@@ -19,7 +19,7 @@ const AGENT_IDS=new Set(AGENTS.map(a=>a.id));
 const cors={"Access-Control-Allow-Origin":"https://yazoniplay.github.io","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-hq-admin-token, x-tonkas-cron-token","Access-Control-Allow-Methods":"GET, POST, OPTIONS"};
 const json=(data:unknown,status:number=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
 const now=()=>new Date().toISOString();
-function providers():ProviderState{return {ashnaai:false,gemini:!!Deno.env.get("GEMINI_API_KEY"),groq:false,ollama:false,default:"gemini",lightweight:"gemini",matt_model:"gemini-3.5-flash-lite"};}
+function providers():ProviderState{const gemini=!!Deno.env.get("GEMINI_API_KEY"),ollama=!!Deno.env.get("OLLAMA_API_KEY");return {ashnaai:false,gemini,groq:false,ollama,default:gemini?"gemini":"ollama",lightweight:gemini?"gemini":"ollama",matt_model:gemini?"gemini-3.5-flash-lite":"gemma4:31b"};}
 function headers(prefer?:string):Record<string,string>{if(!SUPABASE_URL||!SERVICE_KEY)throw new Error("Supabase server credentials are missing.");const h:Record<string,string>={"apikey":SERVICE_KEY,"Authorization":"Bearer "+SERVICE_KEY,"Content-Type":"application/json"};if(prefer)h.Prefer=prefer;return h;}
 async function db(path:string,opt:DbOptions={}):Promise<any>{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{method:opt.method||"GET",headers:headers(opt.prefer),body:opt.body===undefined?undefined:JSON.stringify(opt.body),signal:AbortSignal.timeout(20000)});const t=await r.text();if(!r.ok)throw new Error("Database "+r.status+": "+t.slice(0,400));if(!t)return null;try{return JSON.parse(t)}catch{return t}}
 async function verify(token:string|null,name:string):Promise<boolean>{if(!token)return false;return await db("rpc/tonkas_verify_secret",{method:"POST",body:{p_token:token,p_secret_name:name}})===true;}
@@ -53,12 +53,13 @@ async function snapshot():Promise<any>{
   db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),
   db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),
   db("tonkas_messages?select=*&order=created_at.desc&limit=100"),
-  db("tonkas_activity?select=*&order=created_at.desc&limit=100")
+  db("tonkas_activity?select=*&order=created_at.desc&limit=100"),
+  db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now()))
  ]);
- const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse();
+ const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse(),character_brains=r[5]||[];
  const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true";
  const quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null;
- return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
+ return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
 }
 
 function parse(raw:string):any{
@@ -135,7 +136,7 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
   let base="",key="",modelId="";
   if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-sonnet-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
   if(p==="groq"){key=Deno.env.get("GROQ_API_KEY")||"";base="https://api.groq.com/openai/v1";modelId=modelOverride||Deno.env.get("GROQ_MODEL")||"llama-3.1-8b-instant";if(!key)throw new Error("GROQ_API_KEY missing in Supabase Function Secrets.");}
-  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"").replace(/\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"qwen3:4b";if(!base)throw new Error("OLLAMA_BASE_URL must point to an Ollama endpoint reachable from Supabase.");}
+  if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"https://ollama.com/v1").replace(/\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"gemma4:31b";if(!key)throw new Error("OLLAMA_API_KEY missing in Supabase Function Secrets.");}
   const h:Record<string,string>={"Content-Type":"application/json"};if(key)h.Authorization="Bearer "+key;
   const r=await fetch(base.replace(/\/+$/,"")+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:modelId,temperature:0.3,max_tokens:2200,messages:[{role:"system",content:system},{role:"user",content:prompt}]}),signal});
   const t=await r.text();if(!r.ok)throw new Error(p+" "+r.status+": "+t.slice(0,500));
@@ -186,13 +187,29 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
  }
  throw new Error("Provider must be ashnaai, gemini, groq, or ollama.");
 }
-function primaryProviderForAgent(_agentId:string):string{return "gemini";}
+async function modelWithFallback(system:string,prompt:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<{content:string;provider:string}>{
+ const p=providers();
+ if(p.gemini){
+  try{return {content:await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess),provider:"gemini"};}
+  catch(geminiError){
+   if(!p.ollama)throw geminiError;
+   const fallbackSystem=system+"\n\nFALLBACK PROVIDER NOTICE: Gemini failed for this run. You are now running on Ollama Cloud Gemma 4. You do NOT have Google Search, URL Context, or GitHub repository tools in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
+   try{return {content:await model(fallbackSystem,prompt,"ollama","gemma4:31b",false,false),provider:"ollama"};}
+   catch(ollamaError){throw new Error("Gemini failed: "+String(geminiError).slice(0,350)+" | Ollama Gemma 4 fallback failed: "+String(ollamaError).slice(0,350));}
+  }
+ }
+ if(p.ollama){
+  const fallbackSystem=system+"\n\nFALLBACK PROVIDER NOTICE: Gemini is not configured. You are running on Ollama Cloud Gemma 4. You do NOT have Google Search, URL Context, or GitHub repository tools in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
+  return {content:await model(fallbackSystem,prompt,"ollama","gemma4:31b",false,false),provider:"ollama"};
+ }
+ throw new Error("Neither GEMINI_API_KEY nor OLLAMA_API_KEY is configured in Supabase Function Secrets.");
+}
+function primaryProviderForAgent(_agentId:string):string{return providers().gemini?"gemini":"ollama";}
 function providerForTask(agentId:string,task:any):string{return primaryProviderForAgent(agentId); }
 async function mattCycle(force:boolean=false):Promise<any>{
  const enabled=(await setting("autonomy_enabled","false"))==="true";
- if((await setting("gemini_quota_blocked","false"))==="true")return {skipped:true,reason:"gemini_quota_blocked"};
  if(!enabled&&!force)return {skipped:true,reason:"autonomy_paused"};
- const p=providers();if(!p.gemini)throw new Error("Add GEMINI_API_KEY in Supabase Function Secrets.");
+ const p=providers();if(!p.gemini&&!p.ollama)throw new Error("Add GEMINI_API_KEY or OLLAMA_API_KEY in Supabase Function Secrets.");
  await setAgentState("matt","planning",HOME_POINTS.command,null);
  const r=await Promise.all([
   db("tonkas_agents?select=id,name,role,department,status,current_task"),
@@ -205,12 +222,12 @@ async function mattCycle(force:boolean=false):Promise<any>{
  const lastWebMs=Date.parse(lastWeb);
  const useWeb=!Number.isFinite(lastWebMs)||Date.now()-lastWebMs>12*60*60*1000;
  const system="You are Matt, the autonomous CEO of Tonkas Town. You run the company without waiting for the owner to press buttons. Your portfolio is HookEngine (active Chrome extension business) and Venture Studio (research and validation of new online businesses). HookEngine is the default priority. SMP OPS KIT is permanently excluded. You can use Google Search and URL Context when web research is enabled; use them for current market, competitor, customer, product and platform facts. Cite sources in the task brief and separate evidence from assumptions. You also have read-only GitHub tools for yazoniplay/HookEngine; inspect actual repository files and recent commits before making HookEngine engineering recommendations. You cannot edit files, push commits, open pull requests or deploy. Review company memory, every agent's workload, open tasks, completed deliverables and team messages. Delegate work to specialists, ask them questions, send follow-up messages, compare their outputs and create the next concrete tasks. Do not merely produce strategy documents repeatedly: move work toward measurable HookEngine activation, retention, product quality, ethical growth, or evidence-backed Venture Studio validation. If the queue is empty, create at least two distinct next-phase tasks unless a real owner approval is blocking progress. Every task description must begin BUSINESS_ID: hookengine, venture_studio, or portfolio. For research tasks, prefix the description with WEB_RESEARCH_REQUIRED. Rotate specialists so Noah, Ivy, Dennis, Finn, Bunc, Maverick, Pham, Luke and Trevor all receive meaningful work over time. At most 3 new tasks and 6 messages per cycle. Never duplicate an open task or repeat a completed deliverable unless the next phase is materially different. Never claim external actions happened. Spending, publishing, contacting customers, changing accounts and irreversible actions require owner approval. Return only JSON: {summary:string,tasks:[{title:string,description:string,agent:string,priority:string,department:string}],messages:[{to:string,room:string,content:string}],approvals:[{title:string,context:string,recommended:string,options:[{id:string,label:string,consequence:string}]}]}. Each task needs a measurable outcome and a concrete internal deliverable.";
- const raw=await model(system,JSON.stringify({goal:await setting("company_goal",""),agents:r[0],open_tasks:r[1],recent_activity:r[2],recent_completed_work:r[3],team_messages:r[4],web_research_enabled:useWeb}),"gemini","gemini-3.5-flash-lite",useWeb,true);
- const data=parse(raw);
+ const generated=await modelWithFallback(system,JSON.stringify({goal:await setting("company_goal",""),agents:r[0],open_tasks:r[1],recent_activity:r[2],recent_completed_work:r[3],team_messages:r[4],web_research_enabled:useWeb}),useWeb,true);
+ const data=parse(generated.content);
  if(useWeb)await setSetting("matt_last_web_research_at",now());
  const sources=Array.isArray(data.web_sources)?data.web_sources:[];
  const summary=String(data.summary||"Matt completed a coordination cycle.").slice(0,1200);
- await log("matt.plan","matt",summary,{provider:"gemini",model:"gemini-3.5-flash-lite",web_sources:sources});
+ await log("matt.plan","matt",summary,{provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_sources:sources,web_tools_available:generated.provider==="gemini"});
  await message("command","matt",summary);
  for(const t of (data.tasks||[]).slice(0,3)){
   if(!AGENT_IDS.has(t.agent)||t.agent==="matt")continue;
@@ -231,7 +248,7 @@ async function mattCycle(force:boolean=false):Promise<any>{
  for(const a of (data.approvals||[]).slice(0,2))if(Array.isArray(a.options)&&a.options.length===5)await addApproval(a.title||"Owner decision",a.context||"",a.recommended||"",a.options,"matt");
  const current=await db("tonkas_agents?select=status&id=eq.matt&limit=1");
  if(current?.[0]?.status==="planning")await setAgentState("matt","idle",HOME_POINTS.command,null);
- return {planned:true,summary,web_research:useWeb,sources:sources.length};
+ return {planned:true,summary,provider:generated.provider,web_research:useWeb&&generated.provider==="gemini",sources:sources.length};
 }
 async function runOneTask():Promise<any>{
  const rows=await db("tonkas_tasks?select=*&status=eq.queued&assigned_to=not.is.null&order=created_at.asc&limit=40");
@@ -250,16 +267,17 @@ async function runOneTask():Promise<any>{
    const system="You are "+agent.name+", "+agent.role+". Your permanent charter: "+agent.objective+" You are a real specialist on Matt's team, not a generic chatbot. Read your assigned task, company goal and recent team messages. Reply to relevant messages, ask another agent for missing input when useful, and send concise messages to Matt or another specialist when a handoff is needed. "+(webSearch?"You have live Google Search and URL Context tools in this run. Use Google Search for current facts, open useful pages with URL Context, cite source links in the deliverable, and separate verified evidence from assumptions.":"Use the supplied company context; do not invent external research or claim to have browsed.")+" "+(githubAccess?"You have read-only GitHub tools for yazoniplay/HookEngine. Inspect actual repository files and recent commits when relevant, but do not claim to modify files or create commits.":"Do not claim to have inspected a repository.")+" Produce a concrete deliverable with headings, measurable recommendations and next steps. Never claim to edit a repository, publish, purchase, contact customers, or change accounts. External actions require owner approval. Return JSON only: {\"result\":\"deliverable\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\",\"messages\":[{\"to\":\"agent-id or matt or all\",\"room\":\"department-id\",\"content\":\"message\"}]}.";
    const runtimeState=agent.id==="noah"?await Promise.all([db("tonkas_agents?select=id,status,department"),db("tonkas_tasks?select=id,status,priority,assigned_to,created_at,updated_at"),db("tonkas_approvals?select=id,status")]):null;
    const prompt=JSON.stringify({task:{title:task.title,instructions:task.description},company_goal:await setting("company_goal",""),recent_messages:inbox,runtime_state:runtimeState});
-   const raw=await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess);
-   const result=parse(raw);
-   const status=["completed","blocked","needs_review"].includes(result.status)?result.status:"completed";
+   const generated=await modelWithFallback(system,prompt,webSearch,githubAccess);
+   const result=parse(generated.content);
+   let status=["completed","blocked","needs_review"].includes(result.status)?result.status:"completed";
    let deliverable=String(result.result||"").slice(0,12500);
+   if(generated.provider==="ollama"&&(webSearch||githubAccess)){if(status==="completed")status="needs_review";deliverable+="\n\n> **Verification required:** This task ran on the Ollama fallback. Live Google Search/URL Context and GitHub repository tools were unavailable, so current external claims and repository-specific findings have not been verified.";}
    const sources=Array.isArray(result.web_sources)?result.web_sources:[];
    if(sources.length)deliverable+="\n\n## Web sources\n"+sources.slice(0,12).map((source:any)=>"- ["+String(source.title||"Source").replace(/\]/g,"")+"]("+String(source.url||"")+")").join("\n");
    if(Array.isArray(result.web_search_queries)&&result.web_search_queries.length)deliverable+="\n\n**Search queries:** "+result.web_search_queries.slice(0,6).join("; ");
    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status,result:deliverable.slice(0,14000),updated_at:now()},prefer:"return=minimal"});
    await setAgentState(agent.id,status==="completed"?"idle":status==="needs_review"?"reviewing":"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
-   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,web_research:webSearch,github_access:githubAccess,sources:sources.length});
+   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length});
    await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");
    if(result.message_to_matt)await message("command",agent.id,String(result.message_to_matt).slice(0,2000),"matt");
    for(const outgoing of (result.messages||[]).slice(0,5)){
@@ -267,7 +285,7 @@ async function runOneTask():Promise<any>{
     if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;
     await message(String(outgoing.room||agent.department),agent.id,String(outgoing.content||"").slice(0,3000),recipient);
    }
-   return {task_id:task.id,agent:agent.id,status,web_research:webSearch,github_access:githubAccess,sources:sources.length};
+   return {task_id:task.id,agent:agent.id,status,provider:generated.provider,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length};
   }catch(e){
    const reason=String(e).slice(0,700);
    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});
@@ -296,9 +314,42 @@ async function runCycle(force:boolean=false):Promise<any>{
   return {plan:{blocked:true,reason,quota_blocked:isQuotaError(e)}};
  }
 }
-async function workerCycle():Promise<any>{if((await setting("gemini_quota_blocked","false"))==="true")return {skipped:true,reason:"gemini_quota_blocked"};if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};return await runOneTask();}
-async function command(c:any):Promise<any>{const kind=c.type;if(kind==="autonomy.start"){
- const p=providers();if(!p.gemini)throw new Error("GEMINI_API_KEY is missing from Supabase Function Secrets.");
+const CHARACTER_NODES=["A","B","D","C","L","P","N","H","V","E","F","G","M","Md","R","Fd","J","K"];
+async function runCharacterBrain():Promise<any>{
+ const [agents,tasks,messages,previous]=await Promise.all([
+  db("tonkas_agents?select=id,name,role,department,objective,status,current_task,x,y&order=name.asc"),
+  db("tonkas_tasks?select=id,title,assigned_to,status&status=in.(queued,running)&order=created_at.asc&limit=25"),
+  db("tonkas_messages?select=sender_id,recipient_id,content,created_at&order=created_at.desc&limit=30"),
+  db("tonkas_character_brains?select=agent_id,speech")
+ ]);
+ const taskById=new Map((tasks||[]).map((t:any)=>[String(t.id),t]));
+ const roster=(agents||[]).map((a:any)=>({id:a.id,name:a.name,role:a.role,department:a.department,objective:a.objective,status:a.status,current_task:taskById.get(String(a.current_task))||null,position:{x:a.x,y:a.y}}));
+ const recent=(messages||[]).slice(0,18).reverse().map((m:any)=>({from:m.sender_id,to:m.recipient_id,text:String(m.content||"").slice(0,180)}));
+ const system="You are the live character-brain controller for Tonkas Town, a persistent top-down pixel-art village. You are not writing a report. You are deciding the next believable physical action for each named AI character. Each character has its own identity, role, objective and current work; preserve those distinct personalities and responsibilities. For EVERY roster member return exactly one action. Choose a destination_node from this village navigation graph: A=CEO command HQ, B=town square, D=central crossroads, C=research lodge, L=library path, P=market path, N=farm lane, H=east road, V=lookout, E=pond path, F=workshop road, G=southern grove, M=library, Md=media studio, R=revenue house, Fd=factory/workshop, J=meeting path, K=meeting hall. Actions: idle, working, walking, talking, looking, meeting, blocked. look_direction: up/down/left/right. target_agent must be another roster id or null. speech must be a short natural in-world line (max 150 characters), or empty. Use speech only when action is talking or meeting. Do not repeat recent dialogue. Be purposeful: working agents can stay near their work site; agents needing collaboration should walk to the other agent's area and target them; idle agents should occasionally explore, inspect the village, or look around; characters should not all move together. Keep Matt coordinating, not randomly wandering. Do not fabricate completed tasks or claim external actions. Output ONLY JSON: {\"agents\":[{\"id\":\"...\",\"destination_node\":\"...\",\"action\":\"...\",\"look_direction\":\"...\",\"target_agent\":null,\"speech\":\"...\"}]}";
+ const prompt=JSON.stringify({roster,recent_conversation:recent,open_work:tasks,world_time:now(),instructions:"Think independently for every character. Decide where they should physically go, who they should face, what they should be doing, and whether they have something worth saying right now."});
+ const generated=await modelWithFallback(system,prompt,false,false);
+ const parsed=parse(generated.content),allowedActions=new Set(["idle","working","walking","talking","looking","meeting","blocked"]),directions=new Set(["up","down","left","right"]),prev=new Map((previous||[]).map((p:any)=>[String(p.agent_id),String(p.speech||"")]));
+ if(!Array.isArray(parsed.agents))throw new Error("Character brain did not return an agents array.");
+ const seen=new Set<string>(),states:any[]=[];
+ for(const raw of parsed.agents){
+  const id=String(raw?.id||"");if(!AGENT_IDS.has(id)||seen.has(id))continue;seen.add(id);
+  const destination=CHARACTER_NODES.includes(String(raw.destination_node))?String(raw.destination_node):(roster.find((a:any)=>a.id===id)?.department==="research"?"C":"A");
+  const action=allowedActions.has(String(raw.action))?String(raw.action):"idle";
+  const direction=directions.has(String(raw.look_direction))?String(raw.look_direction):"down";
+  const target=AGENT_IDS.has(String(raw.target_agent||""))&&String(raw.target_agent)!==id?String(raw.target_agent):null;
+  const speech=["talking","meeting"].includes(action)?String(raw.speech||"").replace(/[\\r\\n]+/g," ").slice(0,150):"";
+  states.push({agent_id:id,destination_node:destination,action,look_direction:direction,target_agent:target,speech,updated_at:now(),expires_at:new Date(Date.now()+180000).toISOString()});
+ }
+ if(states.length!==AGENTS.length)throw new Error("Character brain returned "+states.length+" of "+AGENTS.length+" agents; refusing partial world update.");
+ await db("tonkas_character_brains",{method:"POST",body:states,prefer:"resolution=merge-duplicates,return=minimal"});
+ const utterances=states.filter((s:any)=>s.speech&&s.speech!==prev.get(s.agent_id)).slice(0,3);
+ for(const s of utterances)await db("tonkas_messages",{method:"POST",body:{room:"village",sender_id:s.agent_id,recipient_id:s.target_agent,content:s.speech},prefer:"return=minimal"});
+ await log("character.brain","Tonkas AI","Updated live movement, gaze and dialogue for "+states.length+" characters.",{provider:generated.provider,speaking:utterances.map((s:any)=>s.agent_id)});
+ return {updated:states.length,provider:generated.provider,speaking:utterances.length};
+}
+async function workerCycle():Promise<any>{if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};const p=providers();if(!p.gemini&&!p.ollama)return {skipped:true,reason:"no_model_provider"};let brain:any;try{brain=await runCharacterBrain();}catch(e){brain={error:String(e).slice(0,500)};await log("character.brain.error","Tonkas AI","Character brain update failed.",{error:String(e).slice(0,500)});}const work=await runOneTask();return {brain,work};}
+async function command(c:any):Promise<any>{const kind=c.type;if(kind==="characters.position"){const positions=Array.isArray(c.positions)?c.positions.slice(0,10):[];for(const p of positions){const id=String(p.id||"");if(!AGENT_IDS.has(id))continue;const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))continue;await db("tonkas_agents?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),updated_at:now()},prefer:"return=minimal"});}return {ok:true,synced:positions.length};}if(kind==="characters.brain")return {ok:true,result:await runCharacterBrain()};if(kind==="autonomy.start"){
+ const p=providers();if(!p.gemini&&!p.ollama)throw new Error("GEMINI_API_KEY or OLLAMA_API_KEY is missing from Supabase Function Secrets.");
  const blocked=await db("tonkas_tasks?select=id,assigned_to,result&status=eq.blocked");
  const retry=(blocked||[]).filter((task:any)=>/Gemini 429|RESOURCE_EXHAUSTED|exceeded your current quota/i.test(String(task.result||"")));
  for(const task of retry){
