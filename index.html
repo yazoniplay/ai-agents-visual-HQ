@@ -753,6 +753,18 @@ paintStatic();
 .hql-msg article{padding:7px;background:#fbefcf;border-left:3px solid #b27a3e;font-size:11px;overflow-wrap:anywhere}
 .hql-section{font:9px "Press Start 2P",monospace;color:#80502a;margin:4px 0}
 .hql-error{color:#a32121;font-size:11px}
+.hql-meeting{border:1px solid #d2b27c;background:#fff8e8;border-radius:5px;padding:9px;margin-top:7px}
+.hql-meeting summary,.hql-profile summary{cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:5px;align-items:center;list-style:none}
+.hql-meeting summary::-webkit-details-marker,.hql-profile summary::-webkit-details-marker{display:none}
+.hql-meeting summary small,.hql-profile summary small{grid-column:1/-1;color:#7d5a38}
+.hql-meeting[open] summary,.hql-profile[open] summary{padding-bottom:8px;border-bottom:1px solid #d2b27c}
+.hql-meeting-body,.hql-profile-body{padding-top:9px;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.hql-meeting-body ul,.hql-meeting-body ol,.hql-profile-body ul,.hql-profile-body ol{padding-left:20px;margin:5px 0 10px}
+.hql-discussion{border-left:3px solid #b27a3e;padding:6px 9px;margin:8px 0;background:#fffaf0}
+.hql-profile{padding:9px}
+.hql-profile-body{grid-column:1/-1}
+.hql-profile-body>p{margin:8px 0}
+.hql-profile-body>b,.hql-meeting-body>b{display:block;margin-top:10px;color:#80502a;font:9px "Space Mono",monospace;letter-spacing:.04em}
 @media(max-width:560px){#hq-live{top:calc(56px + env(safe-area-inset-top,0px));right:7px;padding:7px 8px;font-size:8px}#hq-live-panel{right:6px;top:calc(100px + env(safe-area-inset-top,0px));width:calc(100vw - 12px);max-height:calc(100vh - 115px)}}
 </style>
 <button id="hq-live" type="button" data-state="offline"><span class="dot"></span><span id="hql-label">HQ OFFLINE</span></button>
