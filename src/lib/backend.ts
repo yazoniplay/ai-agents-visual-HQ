@@ -16,13 +16,13 @@ export type Approval = {
   question: string;
   context: string;
   recommendedAnswer: string;
-  options: { id: string; label: string; consequence: string }[];
+  options: [{ id: string; label: string; consequence: string }, { id: string; label: string; consequence: string }, { id: string; label: string; consequence: string }, { id: string; label: string; consequence: string }, { id: string; label: string; consequence: string }];
   createdAt: string;
 };
 
 export type HQSnapshot = {
   updatedAt: string;
-  company: { name: string; currency: string; budgetAvailable: number; revenueToDate: number; monthlySpend: number };
+  company: { name: string; currency: string; budgetAvailable: number; revenueToDate: number; monthlySpend: number; platformRevenue?: Record<string, number> };
   agents: LiveAgent[];
   tasks?: { id: string; title: string; departmentId: string; status: string; assignedTo?: string; updatedAt: string }[];
   approvals: Approval[];
