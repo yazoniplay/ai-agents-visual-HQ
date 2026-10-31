@@ -353,18 +353,18 @@ const EDGES=[["A","B"],["B","D"],["B","H"],["H","V"],["D","C"],["C","L"],["L","P
 const adj={};EDGES.forEach(([a,b])=>{(adj[a]=adj[a]||[]).push(b);(adj[b]=adj[b]||[]).push(a);});
 const AG=[
  {n:"Maverick",shirt:"#3a7bd5",hair:"#6b3a1e",at:"Md"},
- {n:"Luke",shirt:"#2f6fb0",hair:"#e8b030",at:"A"},
- {n:"Pham",shirt:"#4a9a4a",hair:"#222",hat:"#e0c070",at:"C"},
- {n:"Finn",shirt:"#ececec",hair:"#c84a2a",at:"K"},
- {n:"Dennis",shirt:"#8a4aa0",hair:"#333",at:"K"},
- {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"K"},
+ {n:"Luke",shirt:"#2f6fb0",hair:"#e8b030",at:"Fd"},
+ {n:"Pham",shirt:"#4a9a4a",hair:"#222",hat:"#e0c070",at:"R"},
+ {n:"Finn",shirt:"#ececec",hair:"#c84a2a",at:"Fd"},
+ {n:"Dennis",shirt:"#8a4aa0",hair:"#333",at:"C"},
+ {n:"Bunc",shirt:"#c0392b",hair:"#5a3a1e",at:"Fd"},
  {n:"Matt",shirt:"#7b4aa8",hair:"#34223e",at:"A"},
- {n:"Trevor",shirt:"#bd7a35",hair:"#49321e",at:"H"},
+ {n:"Trevor",shirt:"#bd7a35",hair:"#49321e",at:"K"},
  {n:"Ivy",shirt:"#d36b91",hair:"#4a2b2b",at:"C"},
  {n:"Noah",shirt:"#3f8c78",hair:"#242424",at:"A"}
-].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,wait:Math.random()*3,spd:13+Math.random()*5,ph:Math.random()*6}));
+].map((a,i)=>({...a,x:NODES[a.at][0]+(i%3)*3,y:NODES[a.at][1],cur:a.at,prev:null,to:null,wait:999,spd:13+Math.random()*5,ph:Math.random()*6,destination:a.at,mv:false}));
 window.__tonkasSetAgents=function(list){
- const destinations={command:"A",research:"C",factory:"F",media:"Md",revenue:"R",war:"H"};
+ const destinations={command:"A",research:"C",factory:"Fd",media:"Md",revenue:"R",war:"K"};
  (list||[]).forEach(agent=>{
   const node=destinations[agent.department]||"A";
   let sprite=AG.find(a=>a.n===agent.name);
