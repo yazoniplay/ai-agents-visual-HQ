@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  Activity, ArrowUpRight, Bell, ChevronDown, ChevronRight, CircleHelp,
-  Command, Cpu, DoorOpen, Maximize2, MessageSquare, Minus, Plus,
-  Radio, Search, Settings2, ShieldCheck, Users, Wallet, X,
+  Activity, ChevronDown, ChevronRight, CircleHelp, DoorOpen, Maximize2,
+  Minus, Plus, Radio, Search, Settings2, Users, X,
 } from "lucide-react";
 
 type Room = {
