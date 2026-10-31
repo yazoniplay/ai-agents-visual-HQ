@@ -109,7 +109,7 @@ def parse_json(s):
  s=s.strip()
  if s.startswith("```"): s=s.split("\n",1)[-1].rsplit("```",1)[0]
  return json.loads(s[s.find("{"):s.rfind("}")+1])
-async def matt_cycle():
+async def _matt_cycle():
  if get_setting("autonomy_enabled")!="true" or not any(providers()[k] for k in ("openai","anthropic","gemini")): return
  tasks=query("SELECT id,title,description,assigned_to,status,priority FROM tasks WHERE status IN ('queued','running') ORDER BY created_at LIMIT 30")
  agents=query("SELECT id,name,role,department,status,current_task FROM agents")
@@ -129,6 +129,10 @@ async def matt_cycle():
   for a in data.get("approvals",[])[:2]:
    if isinstance(a.get("options"),list) and len(a["options"])==5: approval(str(a.get("title","Owner decision")),str(a.get("context","")),str(a.get("recommended","")),a["options"],"matt")
  except Exception as e: log("runtime.error","matt",f"Matt cycle failed: {type(e).__name__}: {str(e)[:300]}")
+MATT_LOCK=asyncio.Lock()
+async def matt_cycle():
+ async with MATT_LOCK:
+  await _matt_cycle()
 async def run_tasks():
  if get_setting("autonomy_enabled")!="true": return
  todo=query("SELECT * FROM tasks WHERE status='queued' AND assigned_to IS NOT NULL ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,created_at LIMIT 2")
