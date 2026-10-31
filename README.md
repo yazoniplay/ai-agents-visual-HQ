@@ -2,17 +2,24 @@
 
 Tonkas Town is a pixel-art control center for a small AI-operated online business.
 
-## Architecture
+## Live architecture
 
-- **Dashboard:** static HTML/canvas village served by GitHub Pages.
-- **Runtime:** FastAPI service in `backend/`.
-- **Persistence:** SQLite database on a Render persistent disk.
-- **Orchestrator:** Matt, the autonomous CEO and Chief of Staff.
-- **Specialists:** Dennis (research), Finn (sales/orders), Bunc (product operations), Maverick (marketing), Pham (finance), Luke (engineering), Trevor (quality/risk), Ivy (customer research), and Noah (operations analytics).
-- **Models:** OpenAI, Anthropic, or Gemini API. Provider keys stay on the backend.
+- **Dashboard:** GitHub Pages — `https://yazoniplay.github.io/ai-agents-visual-HQ/`
+- **Runtime:** Supabase Edge Function — `tonkas-hq`
+- **Persistence:** Supabase Postgres — project `ai-hive-db` (`vgbsthdvohazsfpgugmu`)
+- **Scheduling:** Supabase Cron, every five minutes
+- **Orchestrator:** Matt, autonomous CEO and Chief of Staff
+- **Specialists:** Dennis, Finn, Bunc, Maverick, Pham, Luke, Trevor, Ivy, and Noah
+- **Models:** OpenAI, Anthropic, Gemini
 
-## Important
+## What works
 
-The runtime is not live until the Render service is deployed, a provider API key is configured, and the dashboard is connected. Sample revenue figures in the supplied village artwork are not connected to Stripe, Gumroad, or Fiverr and must not be treated as real financial data.
+Matt can plan, delegate internal work, read specialist reports, send internal messages, and ask the owner for a decision with exactly five options. Specialist agents can complete one queued internal task per five-minute cycle. Tasks, messages, approvals, agent status, and activity persist in Postgres. Autonomy is paused by default.
 
-See [the autonomous runtime guide](docs/autonomous-runtime.md) for deployment and setup.
+## Not yet integrated
+
+Browser research, email, social publishing, payments, Stripe, Gumroad, Fiverr, push notifications, and arbitrary code execution are not connected. Sample revenue figures in the original village artwork are not live data. Do not treat an agent's generated statement as proof of an external action.
+
+## Setup
+
+Read [the Supabase runtime guide](docs/autonomous-runtime.md). Add provider API keys as Supabase Edge Function secrets, connect the village using its owner token, and start autonomy manually. Never commit API keys or owner tokens.
