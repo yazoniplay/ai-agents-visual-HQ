@@ -32,7 +32,7 @@ export type HQSnapshot = {
 
 export type ConnectionState = "not-configured" | "connecting" | "connected" | "error";
 
-const baseUrl = (import.meta.env.VITE_HQ_API_URL as string | undefined)?.replace(/\/$/, "");
+const baseUrl = (import.meta as ImportMeta & { env: { VITE_HQ_API_URL?: string } }).env.VITE_HQ_API_URL?.replace(/\/$/, "");
 
 export function getHQBackendUrl() {
   return baseUrl || null;
