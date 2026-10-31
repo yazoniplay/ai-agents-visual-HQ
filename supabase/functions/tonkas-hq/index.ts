@@ -47,7 +47,20 @@ async function message(room:string,sender:string,content:string,to:string|null=n
 }
 async function addTask(title:string,description:string,agent:string|null,creator:string,priority:string="normal",department:string|null=null):Promise<string>{const rows=await db("tonkas_tasks",{method:"POST",body:{title:String(title).slice(0,180),description:String(description).slice(0,10000),assigned_to:agent,created_by:creator,status:"queued",priority:["high","normal","low"].includes(priority)?priority:"normal",department,created_at:now(),updated_at:now()},prefer:"return=representation"});const task=rows&&rows[0];if(!task)throw new Error("Task insert returned no row.");if(agent)await db("tonkas_agents?id=eq."+encodeURIComponent(agent),{method:"PATCH",body:{status:"queued",current_task:task.id,updated_at:now()},prefer:"return=minimal"});await log("task.created",creator,"Created task: "+title,{task_id:task.id,agent});return task.id;}
 async function addApproval(title:string,context:string,recommended:string,options:any[],actor:string):Promise<void>{if(!Array.isArray(options)||options.length!==5)throw new Error("Exactly five options are required.");await db("tonkas_approvals",{method:"POST",body:{title:String(title).slice(0,180),context:String(context).slice(0,10000),recommended_option:String(recommended||""),options,status:"pending",created_by:actor,created_at:now()},prefer:"return=minimal"});await log("approval.created",actor,"Decision needed: "+title,{});}
-async function snapshot():Promise<any>{const r=await Promise.all([db("tonkas_agents?select=*&order=name.asc"),db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),db("tonkas_messages?select=*&order=created_at.desc&limit=100"),db("tonkas_activity?select=*&order=created_at.desc&limit=100")]);const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse();return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};}
+async function snapshot():Promise<any>{
+ const r=await Promise.all([
+  db("tonkas_agents?select=*&order=name.asc"),
+  db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),
+  db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),
+  db("tonkas_messages?select=*&order=created_at.desc&limit=100"),
+  db("tonkas_activity?select=*&order=created_at.desc&limit=100")
+ ]);
+ const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse();
+ const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true";
+ const quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null;
+ return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
+}
+
 function parse(raw:string):any{
  let s=String(raw||"").trim();
  const fence=String.fromCharCode(96).repeat(3);
@@ -177,6 +190,7 @@ function primaryProviderForAgent(_agentId:string):string{return "gemini";}
 function providerForTask(agentId:string,task:any):string{return primaryProviderForAgent(agentId); }
 async function mattCycle(force:boolean=false):Promise<any>{
  const enabled=(await setting("autonomy_enabled","false"))==="true";
+ if((await setting("gemini_quota_blocked","false"))==="true")return {skipped:true,reason:"gemini_quota_blocked"};
  if(!enabled&&!force)return {skipped:true,reason:"autonomy_paused"};
  const p=providers();if(!p.gemini)throw new Error("Add GEMINI_API_KEY in Supabase Function Secrets.");
  await setAgentState("matt","planning",HOME_POINTS.command,null);
@@ -255,15 +269,47 @@ async function runOneTask():Promise<any>{
    }
    return {task_id:task.id,agent:agent.id,status,web_research:webSearch,github_access:githubAccess,sources:sources.length};
   }catch(e){
-   await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:String(e).slice(0,700),updated_at:now()},prefer:"return=minimal"});
+   const reason=String(e).slice(0,700);
+   await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});
    await setAgentState(agent.id,"needs_setup",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
-   await log("task.blocked",agent.name,String(e).slice(0,300),{task_id:task.id});
-   return {task_id:task.id,agent:agent.id,status:"blocked",error:String(e).slice(0,300)};
+   if(isQuotaError(e))await pauseForQuota(reason);
+   await log("task.blocked",agent.name,reason.slice(0,300),{task_id:task.id,quota_blocked:isQuotaError(e)});
+   return {task_id:task.id,agent:agent.id,status:"blocked",error:reason.slice(0,300),quota_blocked:isQuotaError(e)};
   }
  }
  return {task:null,reason:"queue_empty"};
 }
-async function runCycle(force:boolean=false):Promise<any>{try{return {plan:await mattCycle(force)};}catch(e){const reason=String(e).slice(0,500);await log("matt.cycle_blocked","matt","Matt could not complete this planning cycle: "+reason,{reason});return {plan:{blocked:true,reason}};}}
-async function workerCycle():Promise<any>{if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};return await runOneTask();}
-async function command(c:any):Promise<any>{const kind=c.type;if(kind==="autonomy.start"){const p=providers();if(!p.gemini)throw new Error("Add GEMINI_API_KEY in Supabase Function Secrets before starting autonomy.");await setSetting("autonomy_enabled","true");await log("autonomy.started","owner","Matt autonomy enabled.");return {ok:true,cycle:await runCycle(false)};}if(kind==="autonomy.stop"){await setSetting("autonomy_enabled","false");await log("autonomy.stopped","owner","Autonomy paused.");return {ok:true};}if(kind==="matt.run")return {ok:true,cycle:await runCycle(true)};if(kind==="task.create"){if(!c.title||!c.description)throw new Error("title and description are required.");if(c.agent_id&&!AGENT_IDS.has(c.agent_id))throw new Error("Unknown agent.");return {ok:true,task_id:await addTask(c.title,c.description,c.agent_id||null,"owner","normal",c.room||null)};}if(kind==="agent.message"){if(!c.content)throw new Error("Message content is required.");const target=AGENT_IDS.has(c.agent_id)?c.agent_id:"matt";await message(c.room||"command","owner",c.content,target);await addTask("Respond to owner",c.content,target,"owner","high",c.room||"command");return {ok:true};}if(kind==="company.goal"){if(!c.company_goal)throw new Error("Company goal is required.");await setSetting("company_goal",String(c.company_goal).slice(0,3000));await log("goal.updated","owner","Company goal updated.");return {ok:true};}if(kind==="approval.answer"){if(!c.approval_id||!c.option_id)throw new Error("approval_id and option_id are required.");const rows=await db("tonkas_approvals?select=*&id=eq."+encodeURIComponent(c.approval_id)+"&status=eq.pending&limit=1");if(!rows.length)throw new Error("Pending approval not found.");const row=rows[0],selected=(row.options||[]).find((o:any)=>o.id===c.option_id);if(!selected)throw new Error("Invalid approval option.");const updated=await db("tonkas_approvals?id=eq."+encodeURIComponent(c.approval_id)+"&status=eq.pending",{method:"PATCH",body:{status:"answered",answer:selected,answered_at:now()},prefer:"return=representation"});if(!updated.length)throw new Error("Approval was already answered.");await message("command","owner","Owner decision: "+row.title+" — "+selected.label,"matt");await addTask("Continue using owner decision",JSON.stringify({decision:selected,context:row.context}),"matt","owner","high","command");await log("approval.answered","owner","Answered: "+row.title,{approval_id:c.approval_id});return {ok:true};}throw new Error("Unknown command.");}
+async function pauseForQuota(reason:string):Promise<void>{
+ await setSetting("gemini_quota_blocked","true");
+ await setSetting("gemini_quota_blocked_reason",reason.slice(0,1000));
+ await setSetting("autonomy_enabled","false");
+ await setAgentState("matt","blocked",HOME_POINTS.command,null);
+ await log("provider.quota_blocked","system","Autonomy paused after Gemini quota exhaustion. Queued work has been preserved.",{provider:"gemini",model:"gemini-3.5-flash-lite",reason:reason.slice(0,700)});
+}
+function isQuotaError(error:unknown):boolean{return /Gemini 429|RESOURCE_EXHAUSTED|exceeded your current quota/i.test(String(error));}
+async function runCycle(force:boolean=false):Promise<any>{
+ try{return {plan:await mattCycle(force)};}
+ catch(e){
+  const reason=String(e).slice(0,700);
+  if(isQuotaError(e))await pauseForQuota(reason);
+  await log("matt.cycle_blocked","matt","Matt could not complete this planning cycle: "+reason,{reason});
+  return {plan:{blocked:true,reason,quota_blocked:isQuotaError(e)}};
+ }
+}
+async function workerCycle():Promise<any>{if((await setting("gemini_quota_blocked","false"))==="true")return {skipped:true,reason:"gemini_quota_blocked"};if((await setting("autonomy_enabled","false"))!=="true")return {skipped:true,reason:"autonomy_paused"};return await runOneTask();}
+async function command(c:any):Promise<any>{const kind=c.type;if(kind==="autonomy.start"){
+ const p=providers();if(!p.gemini)throw new Error("GEMINI_API_KEY is missing from Supabase Function Secrets.");
+ const blocked=await db("tonkas_tasks?select=id,assigned_to,result&status=eq.blocked");
+ const retry=(blocked||[]).filter((task:any)=>/Gemini 429|RESOURCE_EXHAUSTED|exceeded your current quota/i.test(String(task.result||"")));
+ for(const task of retry){
+  await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"queued",result:null,updated_at:now()},prefer:"return=minimal"});
+  const agent=AGENTS.find(a=>a.id===task.assigned_to);
+  if(agent)await setAgentState(agent.id,"queued",HOME_POINTS[agent.department]||HOME_POINTS.factory,task.id);
+ }
+ await setSetting("gemini_quota_blocked","false");
+ await setSetting("gemini_quota_blocked_reason","");
+ await setSetting("autonomy_enabled","true");
+ await log("autonomy.started","owner","Matt autonomy enabled; quota-blocked tasks requeued.",{quota_retries:retry.length});
+ return {ok:true,quota_retries:retry.length,cycle:await runCycle(false)};
+}if(kind==="autonomy.stop"){await setSetting("autonomy_enabled","false");await log("autonomy.stopped","owner","Autonomy paused.");return {ok:true};}if(kind==="matt.run")return {ok:true,cycle:await runCycle(true)};if(kind==="task.create"){if(!c.title||!c.description)throw new Error("title and description are required.");if(c.agent_id&&!AGENT_IDS.has(c.agent_id))throw new Error("Unknown agent.");return {ok:true,task_id:await addTask(c.title,c.description,c.agent_id||null,"owner","normal",c.room||null)};}if(kind==="agent.message"){if(!c.content)throw new Error("Message content is required.");const target=AGENT_IDS.has(c.agent_id)?c.agent_id:"matt";await message(c.room||"command","owner",c.content,target);await addTask("Respond to owner",c.content,target,"owner","high",c.room||"command");return {ok:true};}if(kind==="company.goal"){if(!c.company_goal)throw new Error("Company goal is required.");await setSetting("company_goal",String(c.company_goal).slice(0,3000));await log("goal.updated","owner","Company goal updated.");return {ok:true};}if(kind==="approval.answer"){if(!c.approval_id||!c.option_id)throw new Error("approval_id and option_id are required.");const rows=await db("tonkas_approvals?select=*&id=eq."+encodeURIComponent(c.approval_id)+"&status=eq.pending&limit=1");if(!rows.length)throw new Error("Pending approval not found.");const row=rows[0],selected=(row.options||[]).find((o:any)=>o.id===c.option_id);if(!selected)throw new Error("Invalid approval option.");const updated=await db("tonkas_approvals?id=eq."+encodeURIComponent(c.approval_id)+"&status=eq.pending",{method:"PATCH",body:{status:"answered",answer:selected,answered_at:now()},prefer:"return=representation"});if(!updated.length)throw new Error("Approval was already answered.");await message("command","owner","Owner decision: "+row.title+" — "+selected.label,"matt");await addTask("Continue using owner decision",JSON.stringify({decision:selected,context:row.context}),"matt","owner","high","command");await log("approval.answered","owner","Answered: "+row.title,{approval_id:c.approval_id});return {ok:true};}throw new Error("Unknown command.");}
 Deno.serve(async(req)=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});try{const u=new URL(req.url);if(req.method==="GET"&&u.pathname.endsWith("/health"))return json({ok:true,service:"tonkas-hq",time:now()});if(req.method!=="POST"&&req.method!=="GET")return json({error:"Method not allowed."},405);const body=req.method==="POST"?await req.json().catch(()=>({})):{};const action=body.action||u.searchParams.get("action")||"snapshot";if(action==="tick"||action==="worker"){if(!await verify(req.headers.get("x-tonkas-cron-token"),"tonkas_cron_token"))return json({error:"Unauthorized scheduled worker."},401);return json({ok:true,result:action==="tick"?await runCycle(false):await workerCycle()});}if(!await verify(req.headers.get("x-hq-admin-token"),"tonkas_admin_token"))return json({error:"Invalid HQ owner token."},401);if(action==="snapshot")return json(await snapshot());if(action==="command")return json(await command(body.command||{}));return json({error:"Unknown action."},400);}catch(e){const errorMessage=e instanceof Error?e.message:String(e);console.error("Tonkas HQ error:",errorMessage);return json({error:errorMessage},500);}});
