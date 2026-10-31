@@ -773,10 +773,10 @@ paintStatic();
   <div class="hql-status">Connect your backend in Settings to activate Matt's autonomous runtime.</div>
   <div class="hql-card">
    <div class="hql-section">BACKEND CONNECTION</div>
-   <input id="hql-url" class="hql-input" placeholder="https://your-service.onrender.com" aria-label="Backend URL">
+   <input id="hql-url" class="hql-input" placeholder="https://your-project.supabase.co" aria-label="Backend URL">
    <input id="hql-token" class="hql-input" type="password" placeholder="HQ admin token" aria-label="HQ admin token">
    <button id="hql-save" class="hql-btn" type="button">SAVE CONNECTION</button>
-   <div class="hql-muted">Provider API keys stay on the server. Never paste model keys here.</div>
+   <div class="hql-muted">Provider API keys belong in Supabase → Edge Functions → Secrets. Never paste model keys here.</div>
   </div>
  </div>
 </section>
@@ -785,7 +785,10 @@ paintStatic();
 "use strict";
 const $=id=>document.getElementById(id);
 const panel=$("hq-live-panel"), trigger=$("hq-live");
-let base=localStorage.getItem("tonkas_api_url")||"", token=localStorage.getItem("tonkas_admin_token")||"", latest=null, busy=false;
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_ZWLGkmQeAYgdUWoOOArAVw_2qA7xjSM";
+const DEFAULT_SUPABASE_URL="https://vgbsthdvohazsfpgugmu.supabase.co";
+let base=localStorage.getItem("tonkas_api_url")||DEFAULT_SUPABASE_URL, token=localStorage.getItem("tonkas_admin_token")||"", latest=null, busy=false;
+if(/onrender\\.com$/i.test(base))base=DEFAULT_SUPABASE_URL;
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 $("hql-url").value=base;$("hql-token").value=token;
 function setState(state,label){trigger.dataset.state=state;$("hql-label").textContent=label;}
@@ -795,12 +798,15 @@ trigger.addEventListener("click",()=>panel.classList.toggle("open"));
 $("hql-close").addEventListener("click",closePanel);
 $("hql-save").addEventListener("click",()=>{base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();localStorage.setItem("tonkas_api_url",base);localStorage.setItem("tonkas_admin_token",token);refresh();});
 async function api(path,opts){
- if(!base)throw new Error("Add your backend URL in Settings first.");
- const headers=Object.assign({"Content-Type":"application/json"},opts&&opts.headers||{});
- if(token)headers["X-HQ-Admin-Token"]=token;
- const r=await fetch(base+path,Object.assign({},opts||{},{headers}));
+ if(!base)throw new Error("Add your Supabase project URL in Settings first.");
+ const input=opts&&opts.body?JSON.parse(opts.body):{};
+ const action=path.endsWith("/snapshot")?"snapshot":"command";
+ const headers={"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY};
+ if(token)headers["x-hq-admin-token"]=token;
+ const payload=action==="snapshot"?{action:"snapshot"}:{action:"command",command:input};
+ const r=await fetch(base.replace(/\\/+$/,"")+"/functions/v1/tonkas-hq",{method:"POST",headers,body:JSON.stringify(payload)});
  const data=await r.json().catch(()=>({}));
- if(!r.ok)throw new Error(data.detail||("HTTP "+r.status));
+ if(!r.ok)throw new Error(data.error||data.detail||("HTTP "+r.status));
  return data;
 }
 async function command(type,extra){
@@ -835,7 +841,7 @@ function render(s){
  html+='<div><div class="hql-section">LIVE ACTIVITY</div><div class="hql-msg">';
  (s.activity||[]).slice(-18).reverse().forEach(a=>{html+='<article><b>'+esc(a.actor)+'</b> · '+esc(a.message)+'<br><small>'+esc(a.created_at)+'</small></article>';});
  html+='</div></div>';
- html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Provider keys belong in Render Environment Variables, never here.</div></div>';
+ html+='<div class="hql-card"><div class="hql-section">SETTINGS</div><input id="hql-url" class="hql-input" value="'+esc(base)+'" placeholder="Backend URL"><input id="hql-token" class="hql-input" type="password" value="'+esc(token)+'" placeholder="HQ admin token"><button class="hql-btn" data-action="settings.save">SAVE CONNECTION</button><div class="hql-muted">Provider keys belong in Supabase Function Secrets, never here.</div></div>';
  html+='<div id="hql-error" class="hql-error"></div>';
  $("hql-body").innerHTML=html;
 }
