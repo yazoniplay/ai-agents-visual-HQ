@@ -46,7 +46,7 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
  if(p==="gemini"){
   const key=Deno.env.get("GEMINI_API_KEY");if(!key)throw new Error("GEMINI_API_KEY missing in Supabase Function Secrets.");
   const modelId=modelOverride||Deno.env.get("GEMINI_MODEL")||"gemini-2.5-flash";
-  const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(modelId)+":generateContent?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.3,maxOutputTokens:2200}}),signal});
+  const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(modelId)+":generateContent?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.3,maxOutputTokens:2200,responseMimeType:"application/json"}}),signal});
   const t=await r.text();if(!r.ok)throw new Error("Gemini "+r.status+": "+t.slice(0,500));
   const content=JSON.parse(t).candidates?.[0]?.content?.parts?.map((x:any)=>x.text||"").join("");if(typeof content!=="string"||!content.trim())throw new Error("Gemini returned an empty completion.");return content;
  }
