@@ -82,7 +82,6 @@ function AgentSprite({ agent, x, y, status, selected, onClick }: {
 function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, showLabels, search, onOpenRoom, onInspectAgent }: Props) {
   const room = (id: string) => rooms.find((item) => item.id === id);
   const dimmed = (id: string) => !!search && !room(id)?.name.toLowerCase().includes(search.toLowerCase());
-  const active = (id: string) => selectedRoom === id;
   const buildingLabel = (id: string, x: number, y: number, width: number) => {
     const item = room(id);
     return showLabels && item ? <g className="building-label" transform={`translate(${x} ${y})`}>
