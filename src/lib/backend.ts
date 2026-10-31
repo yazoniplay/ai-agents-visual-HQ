@@ -5,6 +5,7 @@ export type LiveAgent = {
   departmentId: string;
   status: "idle" | "working" | "waiting" | "meeting" | "error";
   currentTask?: string;
+  thought?: string;
   position?: { x: number; y: number };
   updatedAt: string;
 };
@@ -23,6 +24,7 @@ export type HQSnapshot = {
   updatedAt: string;
   company: { name: string; currency: string; budgetAvailable: number; revenueToDate: number; monthlySpend: number };
   agents: LiveAgent[];
+  tasks?: { id: string; title: string; departmentId: string; status: string; assignedTo?: string; updatedAt: string }[];
   approvals: Approval[];
   departments: { id: string; taskCount: number; activeCount: number; summary?: string }[];
   activity: { id: string; title: string; detail: string; createdAt: string }[];
