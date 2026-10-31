@@ -204,10 +204,15 @@ async function mattCycle(force:boolean=false):Promise<any>{
   const open=await db("tonkas_tasks?select=id&assigned_to=eq."+encodeURIComponent(t.agent)+"&title=eq."+encodeURIComponent(title)+"&status=in.(queued,running)&limit=1");
   if(!open.length)await addTask(title,String(t.description||""),t.agent,"matt",t.priority||"normal",t.department||AGENTS.find(a=>a.id===t.agent)?.department||null);
  }
- for(const m of (data.messages||[]).slice(0,6)){
+ const plannedMessages=(data.messages||[]).slice(0,6);
+ for(const m of plannedMessages){
   const recipient=String(m.to||"all");
   if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;
   await message(String(m.room||"command"),"matt",String(m.content||""),recipient);
+ }
+ if(!plannedMessages.length){
+  const target=AGENT_IDS.has(r[1]?.[0]?.assigned_to)?r[1][0].assigned_to:(data.tasks||[]).find((task:any)=>AGENT_IDS.has(task.agent))?.agent;
+  if(target)await message("command","matt","Progress check: send me your current status, evidence gathered, blockers and the next concrete step. I will review your handoff in the next CEO cycle.",target);
  }
  for(const a of (data.approvals||[]).slice(0,2))if(Array.isArray(a.options)&&a.options.length===5)await addApproval(a.title||"Owner decision",a.context||"",a.recommended||"",a.options,"matt");
  const current=await db("tonkas_agents?select=status&id=eq.matt&limit=1");
