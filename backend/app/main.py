@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio, json, os, secrets, sqlite3, uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -28,8 +28,19 @@ AGENTS=[
 ("noah","Noah","Operations Analyst","command","Track task throughput, blockers, and operational metrics.")]
 AGENT_IDS={a[0] for a in AGENTS}
 def stamp(): return datetime.now(timezone.utc).isoformat()
+@contextmanager
 def db():
- c=sqlite3.connect(DB_PATH,timeout=20); c.row_factory=sqlite3.Row; c.execute("PRAGMA journal_mode=WAL"); return c
+ c=sqlite3.connect(DB_PATH,timeout=20)
+ c.row_factory=sqlite3.Row
+ c.execute("PRAGMA journal_mode=WAL")
+ try:
+  yield c
+  c.commit()
+ except Exception:
+  c.rollback()
+  raise
+ finally:
+  c.close()
 def init():
  with db() as c:
   c.executescript("""
