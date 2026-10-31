@@ -21,6 +21,10 @@ services:
         value: "false"
       - key: HQ_DEFAULT_PROVIDER
         value: openai
+      - key: HQ_MATT_PROVIDER
+        value: openai
+      - key: HQ_AGENT_PROVIDER_MAP
+        value: '{}'
       - key: HQ_TICK_SECONDS
         value: "300"
       - key: HQ_ADMIN_TOKEN
