@@ -30,7 +30,44 @@ async function message(room:string,sender:string,content:string,to:string|null=n
 async function addTask(title:string,description:string,agent:string|null,creator:string,priority:string="normal",department:string|null=null):Promise<string>{const rows=await db("tonkas_tasks",{method:"POST",body:{title:String(title).slice(0,180),description:String(description).slice(0,10000),assigned_to:agent,created_by:creator,status:"queued",priority:["high","normal","low"].includes(priority)?priority:"normal",department,created_at:now(),updated_at:now()},prefer:"return=representation"});const task=rows&&rows[0];if(!task)throw new Error("Task insert returned no row.");if(agent)await db("tonkas_agents?id=eq."+encodeURIComponent(agent),{method:"PATCH",body:{status:"queued",current_task:task.id,updated_at:now()},prefer:"return=minimal"});await log("task.created",creator,"Created task: "+title,{task_id:task.id,agent});return task.id;}
 async function addApproval(title:string,context:string,recommended:string,options:any[],actor:string):Promise<void>{if(!Array.isArray(options)||options.length!==5)throw new Error("Exactly five options are required.");await db("tonkas_approvals",{method:"POST",body:{title:String(title).slice(0,180),context:String(context).slice(0,10000),recommended_option:String(recommended||""),options,status:"pending",created_by:actor,created_at:now()},prefer:"return=minimal"});await log("approval.created",actor,"Decision needed: "+title,{});}
 async function snapshot():Promise<any>{const r=await Promise.all([db("tonkas_agents?select=*&order=name.asc"),db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),db("tonkas_messages?select=*&order=created_at.desc&limit=100"),db("tonkas_activity?select=*&order=created_at.desc&limit=100")]);const agents=r[0]||[],tasks=r[1]||[],approvals=r[2]||[],messages=(r[3]||[]).reverse(),activity=(r[4]||[]).reverse();return {ok:true,runtime:"live",autonomy_enabled:(await setting("autonomy_enabled","false"))==="true",provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};}
-function parse(raw:string):any{let s=String(raw||"").trim();const fence=String.fromCharCode(96).repeat(3);if(s.startsWith(fence)){s=s.slice(fence.length);const n=s.indexOf("\n");if(n>=0)s=s.slice(n+1);const e=s.lastIndexOf(fence);if(e>=0)s=s.slice(0,e);}const a=s.indexOf("{"),b=s.lastIndexOf("}");if(a<0||b<a)throw new Error("Model did not return a JSON object.");return JSON.parse(s.slice(a,b+1));}
+function parse(raw:string):any{
+ let s=String(raw||"").trim();
+ const fence=String.fromCharCode(96).repeat(3);
+ if(s.startsWith(fence)){
+  s=s.slice(fence.length);
+  const n=s.indexOf("\n");
+  if(n>=0)s=s.slice(n+1);
+  const e=s.lastIndexOf(fence);
+  if(e>=0)s=s.slice(0,e);
+ }
+ const a=s.indexOf("{"),b=s.lastIndexOf("}");
+ if(a<0||b<a)throw new Error("Model did not return a JSON object.");
+ s=s.slice(a,b+1);
+ try{return JSON.parse(s);}catch(firstError){
+  let repaired="",inString=false,escaped=false;
+  for(let i=0;i<s.length;i++){
+   const c=s[i];
+   if(!inString){repaired+=c;if(c==='"')inString=true;continue;}
+   if(escaped){
+    if(c==="u"){
+     const hex=s.slice(i+1,i+5);
+     if(/^[0-9a-fA-F]{4}$/.test(hex)){repaired+="u"+hex;i+=4;}
+     else{repaired+="\\\\u";}
+    }else if('"\\/bfnrt'.includes(c)){repaired+=c;}
+    else{repaired+="\\"+c;}
+    escaped=false;
+    continue;
+   }
+   if(c==="\\"){repaired+="\\";escaped=true;continue;}
+   if(c==='"'){repaired+=c;inString=false;continue;}
+   const code=c.charCodeAt(0);
+   if(code<0x20){repaired+="\\u"+code.toString(16).padStart(4,"0");continue;}
+   repaired+=c;
+  }
+  try{return JSON.parse(repaired);}
+  catch(secondError){throw new Error("Model JSON parse failed after repair: "+String(secondError).slice(0,220));}
+ }
+}
 async function model(system:string,prompt:string,provider:string,modelOverride?:string):Promise<string>{
  const p=provider.toLowerCase(),signal=AbortSignal.timeout(70000);
  if(p==="ashnaai"||p==="groq"||p==="ollama"){
