@@ -190,7 +190,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="950" y="45" width="220" height="260" fill="transparent" stroke="transparent"/>
       <title>Media Studio — open content and campaign operations</title>
     </g>
-    <g className="research-zone" onClick={click("research")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("research"); }} opacity={dimmed("research") ? .35 : 1}>
+    <g className="research-zone" transform="translate(70 0)" onClick={click("research")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("research"); }} opacity={dimmed("research") ? .35 : 1}>
       <ellipse cx="875" cy="555" rx="130" ry="15" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="785" y="425" width="185" height="118" fill="#d8d0b1" stroke="#4c6f68" strokeWidth="5"/>
       <path d="M770 430L840 350L995 430Z" fill="#2f7474" stroke="#28565a" strokeWidth="5"/>
