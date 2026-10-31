@@ -10,7 +10,16 @@ Tonkas Town is a pixel-art control center for a small AI-operated online busines
 - **Scheduling:** Supabase Cron, every five minutes
 - **Orchestrator:** Matt, autonomous CEO and Chief of Staff
 - **Specialists:** Dennis, Finn, Bunc, Maverick, Pham, Luke, Trevor, Ivy, and Noah
-- **Models:** OpenAI, Anthropic, Gemini
+
+## AI provider routing
+
+- **Matt:** AshnaAI `claude-opus-5` — fixed model for planning, delegation, and coordination.
+- **Research:** Gemini for Dennis and Ivy.
+- **Marketing:** Gemini for Maverick.
+- **Other specialist work:** AshnaAI by default.
+- **Small / low-priority tasks:** Groq by default, with Ollama as an optional alternative.
+
+No direct OpenAI or Anthropic API integrations are used. Read [the Supabase runtime guide](docs/autonomous-runtime.md) for the complete routing and secret configuration.
 
 ## What works
 
@@ -18,7 +27,7 @@ Matt can plan, delegate internal work, read specialist reports, send internal me
 
 ## Not yet integrated
 
-Browser research, email, social publishing, payments, Stripe, Gumroad, Fiverr, push notifications, and arbitrary code execution are not connected. Sample revenue figures in the original village artwork are not live data. Do not treat an agent's generated statement as proof of an external action.
+Browser research, email, social publishing, payments, Stripe, Gumroad, Fiverr, push notifications, and arbitrary code execution are not connected. Gemini research tasks currently generate internal research briefs; they do not browse the live web. Sample revenue figures in the original village artwork are not live data. Do not treat an agent's generated statement as proof of an external action.
 
 ## Setup
 
