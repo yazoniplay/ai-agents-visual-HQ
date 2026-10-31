@@ -857,7 +857,7 @@ function showError(msg){const e=$("hql-error");if(e)e.textContent=msg;else{const
 function render(s){
  latest=s;
  if(window.__tonkasSetAgents)window.__tonkasSetAgents(s.agents||[],s.tasks||[],s.messages||[],s.character_brains||[]);
- const active=(s.agents||[]).filter(a=>["working","planning","reviewing","meeting"].includes(a.status)).length;
+ const active=(s.agents||[]).filter(a=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length;
  const waiting=(s.approvals||[]).length;
  setState(active?"working":"connected","HQ LIVE · "+active+" ACTIVE · "+waiting+" DECISIONS");
  const providers=s.provider_status||{};
