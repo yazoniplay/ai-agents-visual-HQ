@@ -37,7 +37,7 @@ async function setAgentState(agentId:string,status:string,point?:{x:number;y:num
 async function message(room:string,sender:string,content:string,to:string|null=null):Promise<void>{
  await db("tonkas_messages",{method:"POST",body:{room,sender_id:sender,recipient_id:to,content:String(content).slice(0,10000)},prefer:"return=minimal"});
  await log("message",sender,"New message in "+room,{recipient:to});
- if(sender!=="owner"&&to&&(to==="all"||AGENT_IDS.has(sender)||AGENT_IDS.has(String(to)))){
+ if(sender!=="owner"&&to&&(to==="all"||AGENT_IDS.has(String(to)))){
   const participants=new Set<string>();
   if(AGENT_IDS.has(sender))participants.add(sender);
   if(to==="all")for(const agent of AGENTS)participants.add(agent.id);
@@ -212,7 +212,7 @@ async function mattCycle(force:boolean=false):Promise<any>{
  const enabled=(await setting("autonomy_enabled","false"))==="true";
  if(!enabled&&!force)return {skipped:true,reason:"autonomy_paused"};
  const p=providers();if(!p.gemini&&!p.ollama)throw new Error("Add GEMINI_API_KEY or OLLAMA_API_KEY in Supabase Function Secrets.");
- await setAgentState("matt","planning",undefined,null);
+ await setAgentState("matt","planning");
  const r=await Promise.all([
   db("tonkas_agents?select=id,name,role,department,status,current_task"),
   db("tonkas_tasks?select=id,title,description,assigned_to,status,priority&status=in.(queued,running)&order=created_at.asc&limit=30"),
@@ -249,8 +249,8 @@ async function mattCycle(force:boolean=false):Promise<any>{
   if(target)await message("command","matt","Progress check: send me your current status, evidence gathered, blockers and the next concrete step. I will review your handoff in the next CEO cycle.",target);
  }
  for(const a of (data.approvals||[]).slice(0,2))if(Array.isArray(a.options)&&a.options.length===5)await addApproval(a.title||"Owner decision",a.context||"",a.recommended||"",a.options,"matt");
- const current=await db("tonkas_agents?select=status&id=eq.matt&limit=1");
- if(current?.[0]?.status==="planning")await setAgentState("matt","idle",undefined,null);
+ const current=await db("tonkas_agents?select=status,current_task&id=eq.matt&limit=1");
+ if(current?.[0]?.status==="planning")await setAgentState("matt",current?.[0]?.current_task?"working":"idle");
  return {planned:true,summary,provider:generated.provider,web_research:useWeb&&generated.provider==="gemini",sources:sources.length};
 }
 async function runOneTask():Promise<any>{
