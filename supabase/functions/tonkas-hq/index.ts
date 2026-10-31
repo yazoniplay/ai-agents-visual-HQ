@@ -87,7 +87,7 @@ function parse(raw:string):any{
  }
 }
 async function runAgentTool(name:string,args:any):Promise<any>{
- const path=String(args?.path||"").replace(/^\\/+/, "");
+ const path=String(args?.path||"").replace(/^\/+/, "");
  if(path.split("/").some((part:string)=>part===".."||part==="."))throw new Error("Invalid repository path.");
  if(name==="github_list_files"){
   const suffix=path?"/"+path.split("/").map(encodeURIComponent).join("/"):"";
