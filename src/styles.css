@@ -99,3 +99,72 @@
 .phase-two-layout .search-box input{color:#4d4637}
 .phase-two-layout .zoom-value{color:#665b42}
 @media(max-width:760px){.phase-two-layout .map-frame{min-height:510px}.phase-two-layout .map-canvas{inset:26px -12px 40px;width:calc(100% + 24px)}}
+
+
+/* Cozy village interface */
+.game-shell{background:#d9c99d;color:#493f30}
+.starfield{opacity:.08}
+.topbar{background:#473b2d;border-bottom:3px solid #2e6041;color:#f6edcf}
+.brand{color:#fff4d6}.brand-muted{color:#d5c59c}.brand-mark{border-color:#c6d98e}.brand-mark span{background:#c6d98e;box-shadow:none}
+.build-tag{color:#e4d8b8;border-color:#87734e}
+.top-center{color:#e6d9b9}.top-divider,.muted{color:#b3a17c}
+.world-status{color:#eee1bd;border-color:#88734f;background:#574833}
+.icon-button{color:#e7d9b8}.icon-button:hover{background:#66563d;border-color:#a28a5e}
+.avatar{background:#78975a;border-color:#b4c989;color:#fff8dd}
+.game-content{color:#493f30}
+.page-heading h1{color:#4c422f}.page-heading h1 span{color:#7b694c}.page-heading p{color:#796b50}
+.eyebrow{color:#77694e}.eyebrow-line{background:#6e9652}
+.map-meta .meta-label{color:#76684d}.map-meta strong{color:#4d432f}.map-meta small{color:#8d7b5c}
+.offline-label{color:#98713d!important}.offline-label i{background:#c18b42}
+.map-toolbar{background:#e8d8b0;border-color:#9c8659}
+.map-location{color:#5b503b}.map-location svg{color:#628a4e}
+.tool-button,.search-box{background:#f6ebcd;border-color:#c3ae7d;color:#67583e}
+.tool-button:hover,.tool-button.active{background:#fff3d4;border-color:#8da36a;color:#4d633c}
+.search-box input{color:#4d4637}.search-box input::placeholder{color:#9c8b68}.zoom-value{color:#6e5e42}
+.world-layout{border-color:#9e885b;background:#f0e3c2;box-shadow:0 8px 22px #57472b26}
+.phase-two-layout .map-frame{border-right:3px solid #9a8356}
+.phase-two-panel{background:linear-gradient(160deg,#f5e9ca,#e8d7af);border-left:3px solid #9a8356;color:#4d422e}
+.phase-two-panel .panel-content{color:#4d422e}
+.phase-two-panel .eyebrow,.phase-two-panel .section-heading,.phase-two-panel .directory-count{color:#85714d}
+.phase-two-panel .overview-panel h2,.phase-two-panel .room-profile h2{color:#4b402d}
+.phase-two-panel .overview-panel h2 span{color:#8b7651}
+.phase-two-panel .overview-copy,.phase-two-panel .room-profile p{color:#78694d}
+.phase-two-panel .panel-divider{background:#c8b58a}
+.phase-two-panel .room-list-item{color:#5c4e35}
+.phase-two-panel .room-list-item:hover{background:#e3d1a6;color:#3f5d39}
+.phase-two-panel .room-list-item svg{color:#8d7956}
+.phase-two-panel .map-tip,.phase-two-panel .connection-notice,.phase-two-panel .panel-note{background:#e8d9b6;border-color:#c5b187;color:#756344}
+.phase-two-panel .connection-notice strong,.phase-two-panel .detail-row strong,.phase-two-panel .agent-profile h2{color:#4d422e}
+.phase-two-panel .connection-notice small,.phase-two-panel .detail-row span{color:#82704f}
+.phase-two-panel .room-tabs{background:#dfcea5;border-color:#c1ab7d}
+.phase-two-panel .room-tab{color:#877451}
+.phase-two-panel .room-tab:hover{background:#eadbb7;color:#4c422e}
+.phase-two-panel .room-tab.active{background:#fff1ce;border-color:#c4aa72;color:#4b402d;box-shadow:0 2px 5px #80683b22}
+.phase-two-panel .person-button{color:#4d422e}
+.phase-two-panel .person-button:hover{background:#e6d5ad}
+.phase-two-panel .person-button small{color:#887552}
+.phase-two-panel .person-button>svg{color:#907b55}
+.phase-two-panel .workspace-stats>div,.phase-two-panel .task-item,.phase-two-panel .local-message{background:#eadbb9;border-color:#c7b48a}
+.phase-two-panel .workspace-stats strong,.phase-two-panel .task-main strong,.phase-two-panel .local-message p,.phase-two-panel .event-item strong{color:#4d422e}
+.phase-two-panel .workspace-stats span,.phase-two-panel .task-main small,.phase-two-panel .local-message small,.phase-two-panel .event-item small{color:#897654}
+.phase-two-panel .task-create input,.phase-two-panel .chat-compose input{background:#fff3d5;border-color:#c8b58c;color:#4d422e}
+.phase-two-panel .task-create button,.phase-two-panel .chat-compose button,.phase-two-panel .workspace-open{background:#78965b;border-color:#5f7b45;color:#fff8df}
+.phase-two-panel .workspace-empty,.phase-two-panel .chat-placeholder{color:#887553}
+.phase-two-panel .workspace-empty strong,.phase-two-panel .chat-placeholder strong{color:#4d422e}
+.phase-two-panel .chat-placeholder{background:#eadbb9;border-color:#c4b087}
+.phase-two-panel .event-item{border-color:#cdbb91}
+.phase-two-panel .event-item p{color:#78684c}
+.phase-two-panel .back-link{color:#78694e}
+.phase-two-panel .back-link:hover{color:#405e38}
+.phase-two-panel .agent-role{color:#82704f}
+.phase-two-panel .preview-pill{color:#8a6533;border-color:#c4a66b}
+.bottom-status{color:#78694e}
+.bottom-status strong{color:#574a34}.footer-muted,.footer-right{color:#927f5b}
+.dynamic-notch{background:#473b2d;border-color:#806b48}
+.notch-title{color:#f4e8c9}.notch-divider{background:#806b48}.notch-state{color:#d9caa5}
+.feed-toggle{background:#473b2d;border-color:#806b48;color:#f3e6c6}
+.activity-drawer{background:#f2e4c3;border-color:#a38c5d;color:#4d422e;box-shadow:0 18px 60px #40321c55}
+.drawer-heading h3{color:#4d422e}.drawer-status{background:#e5d4ae;border-color:#c5b187;color:#81623a}
+.drawer-empty{color:#83704e}.drawer-empty strong{color:#4d422e}.drawer-empty span{color:#82704f}
+.activity-drawer .event-item{border-color:#cdbb91}.activity-drawer .event-item strong{color:#4d422e}.activity-drawer .event-item p{color:#78684c}
+@media(max-width:760px){.phase-two-layout .map-frame{border-right:0;border-bottom:3px solid #9a8356}}

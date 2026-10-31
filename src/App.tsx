@@ -11,16 +11,16 @@ type Room = {
 };
 
 const rooms: Room[] = [
-  { id: "executive", name: "Executive Office", short: "EXECUTIVE", x: 70, y: 55, w: 180, h: 150, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company direction, priorities and high-level decisions.", crew: ["NOVA"] },
-  { id: "research", name: "Research Lab", short: "RESEARCH", x: 290, y: 55, w: 180, h: 150, color: "#a58df4", icon: "⌕", department: "Intelligence", description: "Market research, competitor intelligence and opportunity discovery.", crew: ["ATLAS"] },
-  { id: "marketing", name: "Marketing", short: "MARKETING", x: 510, y: 55, w: 180, h: 150, color: "#e78eaf", icon: "✳", department: "Growth", description: "Brand, campaigns, content and customer acquisition.", crew: ["PIXEL"] },
-  { id: "sales", name: "Sales Room", short: "SALES", x: 730, y: 55, w: 180, h: 150, color: "#70c9c0", icon: "↗", department: "Commercial", description: "Prospecting, pipeline management and customer relationships.", crew: ["ECHO"] },
-  { id: "revenue", name: "Revenue Room", short: "REVENUE", x: 950, y: 55, w: 180, h: 150, color: "#7bd5a7", icon: "＄", department: "Finance", description: "Pricing, revenue strategy, forecasting and financial performance.", crew: ["VAULT"] },
-  { id: "design", name: "Design Studio", short: "DESIGN", x: 70, y: 420, w: 180, h: 150, color: "#e5a47b", icon: "◈", department: "Creative", description: "Product interfaces, visual systems and creative direction.", crew: ["MUSE"] },
-  { id: "development", name: "Development", short: "DEVELOPMENT", x: 290, y: 420, w: 180, h: 150, color: "#78aef1", icon: "⌘", department: "Engineering", description: "Software architecture, implementation and technical delivery.", crew: ["BYTE"] },
-  { id: "meeting", name: "Meeting Room", short: "MEETING", x: 510, y: 420, w: 180, h: 150, color: "#83b6ee", icon: "◎", department: "Collaboration", description: "Cross-department discussions, reviews and company decisions.", crew: ["ORBIT"] },
-  { id: "analytics", name: "Analytics", short: "ANALYTICS", x: 730, y: 420, w: 180, h: 150, color: "#c4a0ec", icon: "▥", department: "Insights", description: "Metrics, experiments, reporting and performance analysis.", crew: ["SCOPE"] },
-  { id: "quality", name: "Quality Control", short: "QUALITY", x: 950, y: 420, w: 180, h: 150, color: "#d5c17b", icon: "✓", department: "Review", description: "Testing, review and quality gates before work is delivered.", crew: ["PATCH"] },
+  { id: "executive", name: "Executive Office", short: "EXECUTIVE", x: 90, y: 55, w: 180, h: 150, color: "#e8bd72", icon: "◆", department: "Leadership", description: "Company direction, priorities and high-level decisions.", crew: ["NOVA"] },
+  { id: "research", name: "Research Lab", short: "RESEARCH", x: 390, y: 35, w: 180, h: 150, color: "#a58df4", icon: "⌕", department: "Intelligence", description: "Market research, competitor intelligence and opportunity discovery.", crew: ["ATLAS"] },
+  { id: "marketing", name: "Marketing", short: "MARKETING", x: 760, y: 55, w: 180, h: 150, color: "#e78eaf", icon: "✳", department: "Growth", description: "Brand, campaigns, content and customer acquisition.", crew: ["PIXEL"] },
+  { id: "sales", name: "Sales Room", short: "SALES", x: 930, y: 285, w: 180, h: 150, color: "#70c9c0", icon: "↗", department: "Commercial", description: "Prospecting, pipeline management and customer relationships.", crew: ["ECHO"] },
+  { id: "revenue", name: "Revenue Room", short: "REVENUE", x: 760, y: 485, w: 180, h: 150, color: "#7bd5a7", icon: "＄", department: "Finance", description: "Pricing, revenue strategy, forecasting and financial performance.", crew: ["VAULT"] },
+  { id: "design", name: "Design Studio", short: "DESIGN", x: 390, y: 485, w: 180, h: 150, color: "#e5a47b", icon: "◈", department: "Creative", description: "Product interfaces, visual systems and creative direction.", crew: ["MUSE"] },
+  { id: "development", name: "Development", short: "DEVELOPMENT", x: 45, y: 285, w: 180, h: 150, color: "#78aef1", icon: "⌘", department: "Engineering", description: "Software architecture, implementation and technical delivery.", crew: ["BYTE"] },
+  { id: "meeting", name: "Meeting Room", short: "MEETING", x: 505, y: 250, w: 180, h: 150, color: "#83b6ee", icon: "◎", department: "Collaboration", description: "Cross-department discussions, reviews and company decisions.", crew: ["ORBIT"] },
+  { id: "analytics", name: "Analytics", short: "ANALYTICS", x: 990, y: 55, w: 180, h: 150, color: "#c4a0ec", icon: "▥", department: "Insights", description: "Metrics, experiments, reporting and performance analysis.", crew: ["SCOPE"] },
+  { id: "quality", name: "Quality Control", short: "QUALITY", x: 75, y: 485, w: 180, h: 150, color: "#d5c17b", icon: "✓", department: "Review", description: "Testing, review and quality gates before work is delivered.", crew: ["PATCH"] },
 ];
 
 const agents = [
@@ -135,21 +135,32 @@ function App() {
           <div className="map-canvas" style={{ transform: `scale(${zoom})` }}>
             <svg viewBox="0 0 1200 680" role="img" aria-label="Top-down pixel-art village headquarters with ten department buildings">
               <defs>
-                <pattern id="grass" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#6e9e58"/><rect x="4" y="5" width="3" height="3" fill="#82b96b"/><rect x="21" y="11" width="4" height="3" fill="#5c884b"/><rect x="12" y="25" width="3" height="2" fill="#91c477"/><path d="M27 27l2-3" stroke="#507c45" strokeWidth="2"/></pattern>
-                <pattern id="pathTiles" width="24" height="20" patternUnits="userSpaceOnUse"><rect width="24" height="20" fill="#c6ad78"/><path d="M0 1H24M0 10H24M0 19H24M7 1V10M18 10V19" stroke="#a68d60" strokeWidth="1.5" opacity=".65"/></pattern>
+                <pattern id="grass" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#79a95f"/><path d="M5 8l3-3m14 18l3-3M9 27l2-2" stroke="#91bf70" strokeWidth="2"/><rect x="21" y="6" width="3" height="3" fill="#638d4f"/></pattern>
+                <pattern id="pathTiles" width="24" height="20" patternUnits="userSpaceOnUse"><rect width="24" height="20" fill="#d8bd83"/><path d="M0 1H24M0 19H24M7 1V10M19 10V19" stroke="#b99c68" strokeWidth="1.5" opacity=".65"/></pattern>
                 <pattern id="roofTiles" width="16" height="12" patternUnits="userSpaceOnUse"><path d="M0 0H16M0 6H16M8 0V6M0 6V12" stroke="#ffffff" strokeOpacity=".16" strokeWidth="2"/></pattern>
                 <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+                <pattern id="water" width="28" height="18" patternUnits="userSpaceOnUse"><rect width="28" height="18" fill="#65aeb3"/><path d="M2 6h9m7 7h8" stroke="#a4d9d0" strokeWidth="2" opacity=".8"/></pattern>
               </defs>
               <rect width="1200" height="680" fill="url(#grass)"/>
-              <path d="M0 330H1200" stroke="#d5bd8a" strokeWidth="62"/><path d="M0 330H1200" stroke="url(#pathTiles)" strokeWidth="54"/>
-              <path d="M160 190V330M380 190V330M600 190V330M820 190V330M1040 190V330M160 330V435M380 330V435M600 330V435M820 330V435M1040 330V435" stroke="#c9b17c" strokeWidth="34" fill="none"/>
-              <path d="M160 190V330M380 190V330M600 190V330M820 190V330M1040 190V330M160 330V435M380 330V435M600 330V435M820 330V435M1040 330V435" stroke="url(#pathTiles)" strokeWidth="28" fill="none"/>
-              <g opacity=".95">
-                <rect x="548" y="270" width="104" height="112" fill="#bba477" stroke="#8d7958" strokeWidth="3"/><rect x="556" y="278" width="88" height="96" fill="#d4c18e" stroke="#eee0b7" strokeWidth="2"/>
-                <rect x="586" y="302" width="28" height="28" fill="#78a9a1" stroke="#547e72" strokeWidth="3"/><path d="M600 304V328M588 316H612" stroke="#d6e6b8" strokeWidth="2"/>
-                <rect x="570" y="340" width="60" height="10" fill="#876f4f"/><rect x="580" y="350" width="40" height="6" fill="#6d573e"/>
-              </g>
-              {Array.from({length:18},(_,i)=>{const x=28+(i%9)*142;const y=i<9?24:610;return <g key={i} className="pixel-tree" transform={`translate(${x} ${y})`}><rect x="-5" y="18" width="10" height="18" fill="#76533a"/><rect x="-19" y="2" width="38" height="26" fill="#356b43" stroke="#285638" strokeWidth="3"/><rect x="-13" y="-5" width="25" height="20" fill="#4f874b"/><rect x="-8" y="-1" width="6" height="5" fill="#83b96a"/></g>})}
+              <path d="M0 0H1200V680H0Z" fill="none" stroke="#527e49" strokeWidth="18"/>
+              <path d="M0 225C115 195 190 205 240 240S330 270 385 235S445 205 490 220" fill="none" stroke="#4d9b9e" strokeWidth="76" opacity=".92"/>
+              <path d="M0 225C115 195 190 205 240 240S330 270 385 235S445 205 490 220" fill="none" stroke="url(#water)" strokeWidth="66"/>
+              <path d="M205 244l30 27 22 22M730 391l26-9 25-17" stroke="#8c6848" strokeWidth="12" fill="none"/>
+              <path d="M205 244l30 27 22 22M730 391l26-9 25-17" stroke="#d4b77c" strokeWidth="8" fill="none"/>
+              <path d="M690 0C680 70 720 125 790 165S910 215 980 210S1100 180 1200 205" fill="none" stroke="#b99d6c" strokeWidth="54" strokeLinecap="round"/>
+              <path d="M690 0C680 70 720 125 790 165S910 215 980 210S1100 180 1200 205" fill="none" stroke="url(#pathTiles)" strokeWidth="46" strokeLinecap="round"/>
+              <path d="M0 448C140 435 222 465 330 445S500 402 600 360S820 244 950 245S1090 260 1200 235" fill="none" stroke="#b99d6c" strokeWidth="38" strokeLinecap="round"/>
+              <path d="M0 448C140 435 222 465 330 445S500 402 600 360S820 244 950 245S1090 260 1200 235" fill="none" stroke="url(#pathTiles)" strokeWidth="31" strokeLinecap="round"/>
+              <path d="M180 205C230 160 300 150 390 140M650 165C730 180 790 215 860 250M680 435C710 480 735 520 790 560M335 450C355 495 365 540 390 570M220 360C300 360 390 365 505 325M685 320C790 310 865 330 930 360" fill="none" stroke="#b99d6c" strokeWidth="30" strokeLinecap="round"/>
+              <path d="M180 205C230 160 300 150 390 140M650 165C730 180 790 215 860 250M680 435C710 480 735 520 790 560M335 450C355 495 365 540 390 570M220 360C300 360 390 365 505 325M685 320C790 310 865 330 930 360" fill="none" stroke="url(#pathTiles)" strokeWidth="24" strokeLinecap="round"/>
+              <g className="village-plaza"><ellipse cx="600" cy="365" rx="82" ry="65" fill="#b99d6c" stroke="#8e7957" strokeWidth="4"/><ellipse cx="600" cy="365" rx="74" ry="57" fill="url(#pathTiles)"/><rect x="581" y="336" width="38" height="54" fill="#8e7652" stroke="#715d42" strokeWidth="3"/><rect x="586" y="330" width="28" height="12" fill="#c8b17e" stroke="#806a4b" strokeWidth="2"/><path d="M600 333V365M586 350H614" stroke="#e8d9ac" strokeWidth="3"/><rect x="573" y="393" width="54" height="8" fill="#795d3e"/><rect x="560" y="404" width="80" height="6" fill="#a88b5b"/></g>
+              <g className="village-pond"><ellipse cx="292" cy="254" rx="75" ry="48" fill="#477f79" opacity=".35"/><ellipse cx="292" cy="246" rx="72" ry="44" fill="url(#water)" stroke="#d0c18a" strokeWidth="6"/><path d="M254 240q16-12 31 0t31 0M286 260q16-10 30 0" fill="none" stroke="#c4e8d4" strokeWidth="3"/><path d="M228 235l-12-14m12 14l13-14m-13 14v18M350 250l12-15m-12 15l-13-15" stroke="#4f7d43" strokeWidth="5"/><circle cx="257" cy="210" r="5" fill="#f5df87"/><circle cx="324" cy="277" r="5" fill="#f5df87"/></g>
+              <g className="village-garden"><rect x="250" y="505" width="104" height="105" fill="#9b754b" stroke="#e1c994" strokeWidth="5"/><path d="M263 520H341M263 544H341M263 568H341M263 592H341" stroke="#d4b17a" strokeWidth="4"/><path d="M275 513v13m18-13v13m18-13v13m18-13v13m-54 11v13m18-13v13m18-13v13m18-13v13m-54 11v13m18-13v13m18-13v13m18-13v13m-54 11v13m18-13v13m18-13v13m18-13v13" stroke="#6e9e4d" strokeWidth="5"/><path d="M244 500V616M360 500V616M244 500H360M244 616H360" stroke="#e3d2a6" strokeWidth="4" strokeDasharray="9 5"/></g>
+              <g className="village-well"><rect x="865" y="500" width="42" height="34" fill="#9b8b6a" stroke="#665943" strokeWidth="4"/><path d="M860 500l26-26 26 26M886 475v-17" fill="none" stroke="#6f563b" strokeWidth="6"/><rect x="874" y="510" width="24" height="17" fill="#5c9da0"/></g>
+              <g className="village-fence" stroke="#e1c994" strokeWidth="5" fill="none"><path d="M220 492h-25v132h25M365 492h24v132h-24M195 510h25m-25 28h25m-25 28h25m-25 28h25m144-84h25m-25 28h25m-25 28h25m-25 28h25"/></g>
+              {Array.from({length:30},(_,i)=>{const spots=[[28,40],[320,38],[700,35],[945,35],[1170,245],[1160,560],[1020,630],[580,630],[20,600],[25,180],[350,200],[700,225],[860,20],[1120,20],[450,225],[450,620],[700,580],[1100,440],[30,490],[170,40],[1080,620],[930,620],[500,30],[170,640],[835,430],[390,420],[1150,100],[20,300],[715,110],[1030,370]][i];return <g key={i} className="pixel-tree" transform={"translate("+spots[0]+" "+spots[1]+")"}><ellipse cx="0" cy="28" rx="20" ry="7" fill="#456d40" opacity=".35"/><rect x="-5" y="10" width="10" height="22" fill="#795438"/><rect x="-21" y="-5" width="42" height="30" fill="#3f7845" stroke="#2e6139" strokeWidth="3"/><rect x="-15" y="-13" width="30" height="24" fill="#5b9650"/><rect x="-9" y="-8" width="7" height="6" fill="#9bc66c"/><rect x="7" y="4" width="6" height="5" fill="#78ad59"/></g>})}
+              <g className="village-flowerbeds">{[[375,230],[410,235],[455,210],[720,205],[750,215],[830,450],[970,500],[180,455],[370,640],[700,620],[1135,520],[40,235]].map(([x,y],i)=><g key={i} transform={"translate("+x+" "+y+")"}><rect x="-5" y="2" width="10" height="7" fill="#4e8045"/><rect x="-3" y="-3" width="6" height="6" fill={i%2?"#f0b8a5":"#f4d778"}/></g>)}</g>
+              <g className="village-signs"><rect x="530" y="448" width="46" height="17" fill="#8e6541" stroke="#e1c994" strokeWidth="2"/><text x="553" y="460" textAnchor="middle" fontSize="8" fill="#fff0c8">VILLAGE</text><rect x="1020" y="455" width="36" height="10" fill="#9d784b"/><path d="M1038 455v-26" stroke="#775537" strokeWidth="4"/></g>
               {rooms.map((room,index) => {
                 const roof=["#a65e43","#6d6b9d","#b65e72","#4c8c87","#b58a45","#b86c45","#527ea5","#5685a5","#8b6ba8","#a38a4e"][index];
                 return <g key={room.id} className={`room pixel-building ${selectedRoom===room.id?"room-active":""} ${search&&!visibleRooms.some(item=>item.id===room.id)?"room-dimmed":""}`} onClick={()=>focusRoom(room.id)} role="button" tabIndex={0} aria-label={`Open ${room.name}`} onKeyDown={event=>{if(event.key==="Enter"||event.key===" ")focusRoom(room.id);}}>
@@ -170,7 +181,7 @@ function App() {
               {rooms.map((room)=>{const agent=agents.find(a=>a.room===room.id)!;return <Crew key={agent.name} x={room.x+room.w/2} y={room.y+room.h-63} color={agent.color} name={agent.name} selected={selectedAgent===agent.name} onClick={()=>inspectAgent(agent.name)}/>;})}
             </svg>
           </div>
-          <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> CONNECTED CORRIDOR</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
+          <div className="map-legend"><span><i className="legend-agent" /> AGENT PROFILE</span><span><i className="legend-room" /> DEPARTMENT</span><span><i className="legend-path" /> VILLAGE PATHS</span></div><div className="map-compass"><span>N</span><div>✣</div></div>
         </section>
 
         <aside className="side-panel phase-two-panel">
