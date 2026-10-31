@@ -812,7 +812,7 @@ function render(s){
    if(d.conclusion)html+='<p><b>Conclusion:</b> '+esc(d.conclusion)+'</p>';
    if((d.open_questions||[]).length)html+='<p><b>Open questions:</b> '+esc(d.open_questions.join(" · "))+'</p>';
    html+='</section>';
-  });else html+='<p class="hql-muted">This older record predates structured discussion notes. Its saved summary and decisions are shown here.</p>';
+  });else html+='<p class="hql-muted">This older record predates structured discussion notes. Its earlier AI summary and decisions are retained as historical notes and were not independently verified.</p>';
   if((m.decisions||[]).length)html+='<b>DECISIONS</b><ol>'+(m.decisions||[]).map(d=>'<li><b>'+esc(d.owner||"Unassigned")+'</b> — '+esc(d.decision||"")+'<br><small>Priority: '+esc(d.priority||"normal")+' · Success criteria: '+esc(d.success_criteria||"Not recorded")+'</small></li>').join("")+'</ol>';
   if((m.action_items||[]).length)html+='<b>FOLLOW-UP TASKS</b><ul>'+(m.action_items||[]).map(a=>'<li><b>'+esc(a.owner||"Unassigned")+'</b> — '+esc(a.decision||"")+'<br><small>'+(a.task_id?"Task linked: "+esc(a.task_id):"Task not linked")+' · '+esc(a.success_criteria||"")+'</small></li>').join("")+'</ul>';
   html+='<div class="hql-muted">Attendees: '+esc((m.attendees||[]).join(", "))+' · Provider: '+esc(m.provider||"not recorded")+' · Next meeting: '+esc(m.next_meeting_at?formatDate(m.next_meeting_at):"not recorded")+'</div></div></details>';
@@ -833,8 +833,8 @@ function render(s){
   html+='<div class="hql-muted"><b>Current task:</b> '+esc(task?.title||"No task assigned")+'</div>';
   if(brain)html+='<div class="hql-muted"><b>Character action:</b> '+esc(brain.action||"")+' · '+esc(brain.destination_node||"")+(brain.speech?' · “'+esc(brain.speech)+'”':"")+'</div>';
   if(run)html+='<div class="hql-muted"><b>Latest run:</b> '+esc(run.status)+' · '+esc(formatDate(run.started_at))+' · '+esc(run.provider||"provider not recorded")+'<p>'+esc(run.summary||"")+'</p></div>';
-  html+='<b>PERSISTENT MEMORY</b>';
-  if(agentMemories.length)html+='<ul>'+agentMemories.map(m=>'<li><small>'+esc(m.memory_type)+' · '+esc(formatDate(m.created_at))+'</small><br>'+esc(m.content)+'</li>').join("")+'</ul>';
+  html+='<b>PERSISTENT MEMORY · AGENT-REPORTED, NOT INDEPENDENTLY VERIFIED</b>';
+  if(agentMemories.length)html+='<ul>'+agentMemories.map(m=>'<li><small>'+esc(m.memory_type)+' · '+Math.round(Number(m.confidence||0)*100)+'% confidence · '+esc(formatDate(m.created_at))+'</small><br>'+esc(m.content)+'</li>').join("")+'</ul>';
   else html+='<p class="hql-muted">No durable memories have been written from completed tasks yet.</p>';
   html+='</div></details>';
  });
