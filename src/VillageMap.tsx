@@ -82,6 +82,7 @@ function AgentSprite({ agent, x, y, status, selected, onClick }: {
 function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, showLabels, search, onOpenRoom, onInspectAgent }: Props) {
   const room = (id: string) => rooms.find((item) => item.id === id);
   const dimmed = (id: string) => !!search && !room(id)?.name.toLowerCase().includes(search.toLowerCase());
+  const active = (id: string) => selectedRoom === id;
   const buildingLabel = (id: string, x: number, y: number, width: number) => {
     const item = room(id);
     return showLabels && item ? <g className="building-label" transform={`translate(${x} ${y})`}>
@@ -145,7 +146,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="28" y="350" width="125" height="24"/><rect x="1080" y="325" width="175" height="23"/><rect x="395" y="700" width="95" height="20"/><rect x="1025" y="820" width="155" height="20"/>
       <rect x="35" y="390" width="20" height="105"/><rect x="1260" y="370" width="22" height="105"/>
     </g>
-    <g className="revenue-zone" onClick={click("revenue")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("revenue"); }} opacity={dimmed("revenue") ? .35 : 1}>
+    <g className={`revenue-zone ${active("revenue") ? "is-active" : ""}`} onClick={click("revenue")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("revenue"); }} opacity={dimmed("revenue") ? .35 : 1}>
       <ellipse cx="185" cy="260" rx="145" ry="16" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="38" y="105" width="294" height="190" fill="#dfc98e" stroke="#7b6848" strokeWidth="6"/>
       <path d="M48 158L178 67L320 158Z" fill="#ad4938" stroke="#603d32" strokeWidth="6"/><path d="M48 158L178 67L320 158Z" fill="url(#roof)"/>
@@ -162,7 +163,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="30" y="70" width="320" height="265" fill="transparent" stroke="transparent"/>
       <title>Revenue Bay & Pastures — open revenue and finance operations</title>
     </g>
-    <g className="command-zone" onClick={click("executive")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("executive"); }} opacity={dimmed("executive") ? .35 : 1}>
+    <g className={`command-zone ${active("executive") ? "is-active" : ""}`} onClick={click("executive")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("executive"); }} opacity={dimmed("executive") ? .35 : 1}>
       <ellipse cx="680" cy="255" rx="180" ry="22" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="550" y="140" width="260" height="112" fill="url(#brick)" stroke="#65382f" strokeWidth="6"/>
       <rect x="575" y="92" width="210" height="66" fill="#ad5b45" stroke="#693b31" strokeWidth="5"/>
@@ -176,7 +177,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="525" y="35" width="310" height="260" fill="transparent" stroke="transparent"/>
       <title>Command Center — open budget, agent state and approval queue</title>
     </g>
-    <g className="media-zone" onClick={click("marketing")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("marketing"); }} opacity={dimmed("marketing") ? .35 : 1}>
+    <g className={`media-zone ${active("marketing") ? "is-active" : ""}`} onClick={click("marketing")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("marketing"); }} opacity={dimmed("marketing") ? .35 : 1}>
       <ellipse cx="1060" cy="270" rx="110" ry="15" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="1000" y="150" width="120" height="115" fill="#b54f3c" stroke="#653a31" strokeWidth="5"/>
       <path d="M995 155L1060 90L1125 155Z" fill="#6b3935" stroke="#412f2d" strokeWidth="5"/><path d="M995 155L1060 90L1125 155Z" fill="url(#roof)"/>
@@ -189,7 +190,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="950" y="45" width="220" height="260" fill="transparent" stroke="transparent"/>
       <title>Media Studio — open content and campaign operations</title>
     </g>
-    <g className="research-zone" transform="translate(70 0)" onClick={click("research")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("research"); }} opacity={dimmed("research") ? .35 : 1}>
+    <g className={`research-zone ${active("research") ? "is-active" : ""}`} transform="translate(70 0)" onClick={click("research")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("research"); }} opacity={dimmed("research") ? .35 : 1}>
       <ellipse cx="875" cy="555" rx="130" ry="15" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="785" y="425" width="185" height="118" fill="#d8d0b1" stroke="#4c6f68" strokeWidth="5"/>
       <path d="M770 430L840 350L995 430Z" fill="#2f7474" stroke="#28565a" strokeWidth="5"/>
@@ -201,7 +202,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="760" y="340" width="245" height="245" fill="transparent" stroke="transparent"/>
       <title>Research Lab — open idea validation and research logs</title>
     </g>
-    <g className="war-zone" onClick={click("meeting")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("meeting"); }} opacity={dimmed("meeting") ? .35 : 1}>
+    <g className={`war-zone ${active("meeting") ? "is-active" : ""}`} onClick={click("meeting")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("meeting"); }} opacity={dimmed("meeting") ? .35 : 1}>
       <ellipse cx="1225" cy="780" rx="115" ry="16" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="1145" y="665" width="160" height="110" fill="url(#brick)" stroke="#673c32" strokeWidth="5"/>
       <path d="M1130 675L1225 535L1320 675Z" fill="#5a3936" stroke="#3d2e2c" strokeWidth="6"/><path d="M1130 675L1225 535L1320 675Z" fill="url(#roof)"/>
@@ -213,7 +214,7 @@ function VillageMap({ rooms, agents, liveAgents, selectedRoom, selectedAgent, sh
       <rect x="1105" y="520" width="240" height="300" fill="transparent" stroke="transparent"/>
       <title>War Room — open agent syncs and meetings</title>
     </g>
-    <g className="factory-zone" onClick={click("development")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("development"); }} opacity={dimmed("development") ? .35 : 1}>
+    <g className={`factory-zone ${active("development") ? "is-active" : ""}`} onClick={click("development")} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpenRoom("development"); }} opacity={dimmed("development") ? .35 : 1}>
       <ellipse cx="230" cy="815" rx="150" ry="17" fill="#385c3b" opacity=".25" filter="url(#building-shadow)"/>
       <rect x="125" y="690" width="205" height="120" fill="#b94b3a" stroke="#67392f" strokeWidth="5"/>
       <path d="M112 700L225 610L343 700Z" fill="#713d35" stroke="#452f2c" strokeWidth="6"/><path d="M112 700L225 610L343 700Z" fill="url(#roof)"/>
