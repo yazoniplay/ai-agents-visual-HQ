@@ -19,7 +19,7 @@ const AGENT_IDS=new Set(AGENTS.map(a=>a.id));
 const cors={"Access-Control-Allow-Origin":"https://yazoniplay.github.io","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-hq-admin-token, x-tonkas-cron-token","Access-Control-Allow-Methods":"GET, POST, OPTIONS"};
 const json=(data:unknown,status:number=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
 const now=()=>new Date().toISOString();
-function providers():ProviderState{const gemini=!!Deno.env.get("GEMINI_API_KEY"),ollama=!!Deno.env.get("OLLAMA_API_KEY");return {ashnaai:false,gemini,groq:false,ollama,default:gemini?"gemini":"ollama",lightweight:gemini?"gemini":"ollama",matt_model:gemini?"gemini-3.5-flash-lite":(Deno.env.get("OLLAMA_GPT_OSS_MODEL")||"gpt-oss:120b")};}
+function providers():ProviderState{const ashnaai=!!Deno.env.get("ASHNA_API_KEY"),gemini=!!Deno.env.get("GEMINI_API_KEY"),ollama=!!Deno.env.get("OLLAMA_API_KEY");return {ashnaai,gemini,groq:false,ollama,default:ashnaai?"ashnaai":gemini?"gemini":"ollama",lightweight:gemini?"gemini":ollama?"ollama":"ashnaai",matt_model:ashnaai?(Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-opus-5"):gemini?"gemini-3.5-flash-lite":(Deno.env.get("OLLAMA_GPT_OSS_MODEL")||"gpt-oss:120b")};}
 function headers(prefer?:string):Record<string,string>{if(!SUPABASE_URL||!SERVICE_KEY)throw new Error("Supabase server credentials are missing.");const h:Record<string,string>={"apikey":SERVICE_KEY,"Authorization":"Bearer "+SERVICE_KEY,"Content-Type":"application/json"};if(prefer)h.Prefer=prefer;return h;}
 async function db(path:string,opt:DbOptions={}):Promise<any>{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{method:opt.method||"GET",headers:headers(opt.prefer),body:opt.body===undefined?undefined:JSON.stringify(opt.body),signal:AbortSignal.timeout(20000)});const t=await r.text();if(!r.ok)throw new Error("Database "+r.status+": "+t.slice(0,400));if(!t)return null;try{return JSON.parse(t)}catch{return t}}
 async function verify(token:string|null,name:string):Promise<boolean>{if(!token)return false;return await db("rpc/tonkas_verify_secret",{method:"POST",body:{p_token:token,p_secret_name:name}})===true;}
@@ -268,7 +268,7 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
  const p=provider.toLowerCase(),signal=AbortSignal.timeout(timeoutMs);
  if(p==="ashnaai"||p==="groq"||p==="ollama"){
   let base="",key="",modelId="";
-  if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-sonnet-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
+  if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-opus-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
   if(p==="groq"){key=Deno.env.get("GROQ_API_KEY")||"";base="https://api.groq.com/openai/v1";modelId=modelOverride||Deno.env.get("GROQ_MODEL")||"llama-3.1-8b-instant";if(!key)throw new Error("GROQ_API_KEY missing in Supabase Function Secrets.");}
   if(p==="ollama"){base=(Deno.env.get("OLLAMA_BASE_URL")||"https://ollama.com/v1").replace(/\/+$/,"");key=Deno.env.get("OLLAMA_API_KEY")||"";modelId=modelOverride||Deno.env.get("OLLAMA_MODEL")||"gemma4:31b";if(!key)throw new Error("OLLAMA_API_KEY missing in Supabase Function Secrets.");}
   const h:Record<string,string>={"Content-Type":"application/json"};if(key)h.Authorization="Bearer "+key;
@@ -323,9 +323,23 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
 }
 async function modelWithFallback(system:string,prompt:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<{content:string;provider:string;model:string}>{
  const p=providers(),failures:string[]=[];
+ const ashnaModel=Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-opus-5";
+ // AshnaAI is the primary model for internal reasoning and orchestration.
+ // Gemini remains first for tasks that explicitly require live Search or GitHub tool calls.
+ if(p.ashnaai&&!webSearch&&!githubAccess){
+  try{const content=await model(system,prompt,"ashnaai",ashnaModel,false,false,70000);parse(content);return {content,provider:"ashnaai",model:ashnaModel};}
+  catch(error){failures.push("AshnaAI "+ashnaModel+": "+String(error).slice(0,350));try{await log("provider.failover","system","AshnaAI failed; switching to Gemini if available.",{from:ashnaModel,reason:String(error).slice(0,500),next:p.gemini?"gemini-3.5-flash-lite":null});}catch(_){}}
+ }
  if(p.gemini){
   try{const content=await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess,25000);parse(content);return {content,provider:"gemini",model:"gemini-3.5-flash-lite"};}
   catch(error){failures.push("Gemini 3.5 Flash-Lite: "+String(error).slice(0,350));try{await log("provider.failover","system","Gemini failed; switching immediately to Ollama GPT-OSS 120B.",{from:"gemini-3.5-flash-lite",reason:String(error).slice(0,500),next:"gpt-oss:120b"});}catch(_){}}
+ }
+ if(p.ashnaai&& (webSearch||githubAccess)){
+  try{
+   const fallbackSystem=system+"\\n\\nPROVIDER NOTICE: AshnaAI is handling this fallback because Gemini's live-search/tool path failed. Live Google Search, URL Context, and GitHub tools are unavailable in this run. Do not claim to have browsed, inspected files, verified current facts, or cite invented sources. Label anything requiring live research for human review.";
+   const content=await model(fallbackSystem,prompt,"ashnaai",ashnaModel,false,false,70000);parse(content);
+   return {content,provider:"ashnaai",model:ashnaModel};
+  }catch(error){failures.push("AshnaAI fallback "+ashnaModel+": "+String(error).slice(0,350));}
  }
  if(p.ollama){
   const fallbacks=[
@@ -344,7 +358,7 @@ async function modelWithFallback(system:string,prompt:string,webSearch:boolean=f
    }
   }
  }
- if(!p.gemini&&!p.ollama)throw new Error("Neither GEMINI_API_KEY nor OLLAMA_API_KEY is configured in Supabase Function Secrets.");
+ if(!p.ashnaai&&!p.gemini&&!p.ollama)throw new Error("ASHNA_API_KEY, GEMINI_API_KEY, and OLLAMA_API_KEY are all missing from Supabase Function Secrets.");
  throw new Error("All configured AI providers failed. "+failures.join(" | "));
 }
 async function mattCycle(force:boolean=false):Promise<any>{
