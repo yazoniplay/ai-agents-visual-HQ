@@ -125,8 +125,8 @@ const GITHUB_FUNCTIONS=[
  {name:"github_read_file",description:"Read a text file from the public yazoniplay/HookEngine repository on main. Read-only; maximum 28 KB.",parameters:{type:"OBJECT",properties:{path:{type:"STRING",description:"Repository-relative file path."}},required:["path"]}},
  {name:"github_recent_commits",description:"Read the eight latest commits from yazoniplay/HookEngine. Read-only.",parameters:{type:"OBJECT",properties:{}}}
 ];
-async function model(system:string,prompt:string,provider:string,modelOverride?:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<string>{
- const p=provider.toLowerCase(),signal=AbortSignal.timeout(70000);
+async function model(system:string,prompt:string,provider:string,modelOverride?:string,webSearch:boolean=false,githubAccess:boolean=false,timeoutMs:number=70000):Promise<string>{
+ const p=provider.toLowerCase(),signal=AbortSignal.timeout(timeoutMs);
  if(p==="ashnaai"||p==="groq"||p==="ollama"){
   let base="",key="",modelId="";
   if(p==="ashnaai"){key=Deno.env.get("ASHNA_API_KEY")||"";base=Deno.env.get("ASHNA_BASE_URL")||"https://api.ashna.ai/v1/api";modelId=modelOverride||Deno.env.get("ASHNA_DEFAULT_MODEL")||"claude-sonnet-5";if(!key)throw new Error("ASHNA_API_KEY missing in Supabase Function Secrets.");}
