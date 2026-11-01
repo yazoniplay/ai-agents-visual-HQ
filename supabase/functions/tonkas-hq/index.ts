@@ -19,7 +19,7 @@ const AGENT_IDS=new Set(AGENTS.map(a=>a.id));
 const cors={"Access-Control-Allow-Origin":"https://yazoniplay.github.io","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-hq-admin-token, x-tonkas-cron-token","Access-Control-Allow-Methods":"GET, POST, OPTIONS"};
 const json=(data:unknown,status:number=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
 const now=()=>new Date().toISOString();
-function providers():ProviderState{const gemini=!!Deno.env.get("GEMINI_API_KEY"),ollama=!!Deno.env.get("OLLAMA_API_KEY");return {ashnaai:false,gemini,groq:false,ollama,default:gemini?"gemini":"ollama",lightweight:gemini?"gemini":"ollama",matt_model:gemini?"gemini-3.5-flash-lite":"gemma4:31b"};}
+function providers():ProviderState{const gemini=!!Deno.env.get("GEMINI_API_KEY"),ollama=!!Deno.env.get("OLLAMA_API_KEY");return {ashnaai:false,gemini,groq:false,ollama,default:gemini?"gemini":"ollama",lightweight:gemini?"gemini":"ollama",matt_model:gemini?"gemini-3.5-flash-lite":(Deno.env.get("OLLAMA_GPT_OSS_MODEL")||"gpt-oss:120b")};}
 function headers(prefer?:string):Record<string,string>{if(!SUPABASE_URL||!SERVICE_KEY)throw new Error("Supabase server credentials are missing.");const h:Record<string,string>={"apikey":SERVICE_KEY,"Authorization":"Bearer "+SERVICE_KEY,"Content-Type":"application/json"};if(prefer)h.Prefer=prefer;return h;}
 async function db(path:string,opt:DbOptions={}):Promise<any>{const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{method:opt.method||"GET",headers:headers(opt.prefer),body:opt.body===undefined?undefined:JSON.stringify(opt.body),signal:AbortSignal.timeout(20000)});const t=await r.text();if(!r.ok)throw new Error("Database "+r.status+": "+t.slice(0,400));if(!t)return null;try{return JSON.parse(t)}catch{return t}}
 async function verify(token:string|null,name:string):Promise<boolean>{if(!token)return false;return await db("rpc/tonkas_verify_secret",{method:"POST",body:{p_token:token,p_secret_name:name}})===true;}
@@ -182,25 +182,32 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
  }
  throw new Error("Provider must be ashnaai, gemini, groq, or ollama.");
 }
-async function modelWithFallback(system:string,prompt:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<{content:string;provider:string}>{
- const p=providers();
+async function modelWithFallback(system:string,prompt:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<{content:string;provider:string;model:string}>{
+ const p=providers(),failures:string[]=[];
  if(p.gemini){
-  try{return {content:await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess),provider:"gemini"};}
-  catch(geminiError){
-   if(!p.ollama)throw geminiError;
-   const fallbackSystem=system+"\n\nFALLBACK PROVIDER NOTICE: Gemini failed for this run. You are now running on Ollama Cloud Gemma 4. You do NOT have Google Search, URL Context, or GitHub repository tools in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
-   try{return {content:await model(fallbackSystem,prompt,"ollama","gemma4:31b",false,false),provider:"ollama"};}
-   catch(ollamaError){throw new Error("Gemini failed: "+String(geminiError).slice(0,350)+" | Ollama Gemma 4 fallback failed: "+String(ollamaError).slice(0,350));}
-  }
+  try{return {content:await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess,25000),provider:"gemini",model:"gemini-3.5-flash-lite"};}
+  catch(error){failures.push("Gemini 3.5 Flash-Lite: "+String(error).slice(0,350));await log("provider.failover","system","Gemini failed; switching immediately to Ollama GPT-OSS 120B.",{from:"gemini-3.5-flash-lite",reason:String(error).slice(0,500),next:"gpt-oss:120b"});}
  }
  if(p.ollama){
-  const fallbackSystem=system+"\n\nFALLBACK PROVIDER NOTICE: Gemini is not configured. You are running on Ollama Cloud Gemma 4. You do NOT have Google Search, URL Context, or GitHub repository tools in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
-  return {content:await model(fallbackSystem,prompt,"ollama","gemma4:31b",false,false),provider:"ollama"};
+  const fallbacks=[
+   {id:Deno.env.get("OLLAMA_GPT_OSS_MODEL")||"gpt-oss:120b",label:"Ollama GPT-OSS 120B"},
+   {id:Deno.env.get("OLLAMA_GEMMA_MODEL")||"gemma4:31b",label:"Ollama Gemma 4"}
+  ];
+  for(let i=0;i<fallbacks.length;i++){
+   const candidate=fallbacks[i],fallbackSystem=system+"\\n\\nFALLBACK PROVIDER NOTICE: You are running on Ollama Cloud model "+candidate.id+". Gemini failed or was unavailable. Google Search, URL Context, and GitHub repository tools are NOT available in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
+   try{
+    const content=await model(fallbackSystem,prompt,"ollama",candidate.id,false,false,70000);
+    if(failures.length)await log("provider.failover.success","system",candidate.label+" successfully took over after provider failure.",{model:candidate.id,previous_failures:failures});
+    return {content,provider:"ollama",model:candidate.id};
+   }catch(error){
+    failures.push(candidate.label+": "+String(error).slice(0,350));
+    await log("provider.failover","system",candidate.label+" failed; "+(i===0?"trying Gemma 4 next.":"all configured fallback models have failed."),{model:candidate.id,reason:String(error).slice(0,500),next:fallbacks[i+1]?.id||null});
+   }
+  }
  }
- throw new Error("Neither GEMINI_API_KEY nor OLLAMA_API_KEY is configured in Supabase Function Secrets.");
+ if(!p.gemini&&!p.ollama)throw new Error("Neither GEMINI_API_KEY nor OLLAMA_API_KEY is configured in Supabase Function Secrets.");
+ throw new Error("All configured AI providers failed. "+failures.join(" | "));
 }
-function primaryProviderForAgent(_agentId:string):string{return providers().gemini?"gemini":"ollama";}
-function providerForTask(agentId:string,task:any):string{return primaryProviderForAgent(agentId); }
 async function mattCycle(force:boolean=false):Promise<any>{
  const enabled=(await setting("autonomy_enabled","false"))==="true";
  if(!enabled&&!force)return {skipped:true,reason:"autonomy_paused"};
