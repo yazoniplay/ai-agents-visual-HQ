@@ -49,7 +49,7 @@ async function addTask(title:string,description:string,agent:string|null,creator
 async function addApproval(title:string,context:string,recommended:string,options:any[],actor:string):Promise<void>{if(!Array.isArray(options)||options.length!==5)throw new Error("Exactly five options are required.");await db("tonkas_approvals",{method:"POST",body:{title:String(title).slice(0,180),context:String(context).slice(0,10000),recommended_option:String(recommended||""),options,status:"pending",created_by:actor,created_at:now()},prefer:"return=minimal"});await log("approval.created",actor,"Decision needed: "+title,{});}
 
 async function creaoRequest(path:string,method="GET",body?:unknown):Promise<any>{
- const key=Deno.env.get("CREAO_API_KEY")||"";
+ const key=(Deno.env.get("CREAO_API_KEY")||"").trim();
  if(!key)throw new Error("CREAO_API_KEY is missing from Supabase Function Secrets.");
  const response=await fetch("https://developer.creao.ai/v2"+path,{method,headers:{"Authorization":"Bearer "+key,"Accept":"application/json","Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
  const raw=await response.text();let data:any={};try{data=raw?JSON.parse(raw):{};}catch{data={message:raw.slice(0,300)};}
