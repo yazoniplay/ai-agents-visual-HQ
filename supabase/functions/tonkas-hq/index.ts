@@ -286,7 +286,7 @@ async function runOneTask():Promise<any>{
    await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");if(!placeholderResponse&&result.message_to_matt)await message("command",agent.id,String(result.message_to_matt).slice(0,2000),"matt");
    for(const outgoing of (placeholderResponse?[]:(result.messages||[]).slice(0,5))){const recipient=String(outgoing.to||"matt");if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;await message(String(outgoing.room||agent.department),agent.id,String(outgoing.content||"").slice(0,3000),recipient);}
    return {task_id:task.id,agent:agent.id,status,provider:generated.provider,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1};
-  }catch(e){const reason=String(e).slice(0,700);await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});await setAgentState(agent.id,"needs_setup",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,status:"blocked",started_at:startedAt,finished_at:now(),summary:reason,procedure_version:1},prefer:"return=minimal"}).catch(()=>{});if(isQuotaError(e))await pauseForQuota(reason);await log("task.blocked",agent.name,reason.slice(0,300),{task_id:task.id,quota_blocked:isQuotaError(e)});return {task_id:task.id,agent:agent.id,status:"blocked",error:reason.slice(0,300),quota_blocked:isQuotaError(e)};}
+  }catch(e){const reason=String(e).slice(0,700);await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,updated_at:now()},prefer:"return=minimal"});await setAgentState(agent.id,"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,status:"blocked",started_at:startedAt,finished_at:now(),summary:reason,procedure_version:1},prefer:"return=minimal"}).catch(()=>{});if(isQuotaError(e))await log("provider.quota_fallback_exhausted","system","Gemini quota was exhausted and configured fallback attempts also failed; autonomy remains enabled for the next scheduled cycle.",{reason});await log("task.blocked",agent.name,reason.slice(0,300),{task_id:task.id,quota_blocked:isQuotaError(e)});return {task_id:task.id,agent:agent.id,status:"blocked",error:reason.slice(0,300),quota_blocked:isQuotaError(e)};}
  }
  return {task:null,reason:"queue_empty"};
 }
@@ -302,7 +302,7 @@ async function runCycle(force:boolean=false):Promise<any>{
  try{return {plan:await mattCycle(force)};}
  catch(e){
   const reason=String(e).slice(0,700);
-  if(isQuotaError(e))await pauseForQuota(reason);
+  if(isQuotaError(e))await log("provider.quota_fallback_exhausted","system","Gemini quota was exhausted and configured fallback attempts also failed; autonomy remains enabled for the next scheduled cycle.",{reason});
   await log("matt.cycle_blocked","matt","Matt could not complete this planning cycle: "+reason,{reason});
   return {plan:{blocked:true,reason,quota_blocked:isQuotaError(e)}};
  }
