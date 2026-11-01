@@ -858,6 +858,18 @@ $("hql-body").addEventListener("click",async e=>{
  const b=e.target.closest("button");if(!b)return;
  if(b.dataset.approval){await command("approval.answer",{approval_id:b.dataset.approval,option_id:b.dataset.option});return;}
  const a=b.dataset.action;if(!a)return;
+ if(a==="creao.connect"){
+  const original=b.textContent;b.disabled=true;b.textContent="CONTACTING CREAO...";
+  const err=$("hql-error");if(err)err.textContent="";
+  try{
+   const result=await api("/api/hq/commands",{method:"POST",body:JSON.stringify({type:"creao.connect"})});
+   const detail=result?.result||result;
+   showError("CREAO responded: "+(detail?.status||detail?.message||"provisioning request accepted")+". Refreshing workforce status...");
+   await refresh();
+  }catch(e){showError("CREAO connection failed: "+e.message);}
+  finally{if(b.isConnected){b.disabled=false;b.textContent=original;}}
+  return;
+ }
  if(a==="goal.save"){await command("company.goal",{company_goal:$("hql-goal").value});return;}
  if(a==="message.send"){const v=$("hql-message").value.trim();if(v)await command("agent.message",{agent_id:"matt",room:"command",content:v});return;}
  if(a==="settings.save"){base=$("hql-url").value.trim().replace(/\/+$/,"");token=$("hql-token").value.trim();localStorage.setItem("tonkas_api_url",base);localStorage.setItem("tonkas_admin_token",token);await refresh();return;}
