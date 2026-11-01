@@ -53,8 +53,20 @@ async function creaoRequest(path:string,method="GET",body?:unknown):Promise<any>
  if(!key)throw new Error("CREAO_API_KEY is missing from Supabase Function Secrets.");
  const response=await fetch("https://developer.creao.ai/v2"+path,{method,headers:{"Authorization":"Bearer "+key,"Accept":"application/json","Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
  const raw=await response.text();let data:any={};try{data=raw?JSON.parse(raw):{};}catch{data={message:raw.slice(0,300)};}
+ if(response.status===401)throw new Error("CREAO authentication rejected the configured CREAO_API_KEY (401). CREAO documents this for a missing, malformed, revoked, or legacy /v1 account key. The /v2/me endpoint and Bearer header are valid; verify that the configured credential is a current CREAO v2 project key. Never put the key in logs.");
  if(!response.ok)throw new Error("CREAO API "+response.status+": "+String(data.message||data.error||"Request failed").slice(0,350));
  return data;
+}
+async function pollAgentCreation(agentId:string,localAgentId:string):Promise<string>{
+ const runId=await setting("creao_create_run_"+localAgentId,"");
+ if(!runId)return "unknown";
+ const run=await creaoRequest("/agents/"+encodeURIComponent(agentId)+"/edits/"+encodeURIComponent(runId));
+ const status=String(run.status||"unknown");
+ await setSetting("creao_create_status_"+localAgentId,status);
+ if(status==="failed"||status==="cancelled"){
+  await log("creao.agent.creation_failed",localAgentId,"CREAO hosted-agent creation did not complete.",{run_id:runId,status,error_code:run.error?.code||null,error_message:String(run.error?.message||"").slice(0,300)});
+ }
+ return status;
 }
 async function provisionCreaoAgents():Promise<any>{
  const me=await creaoRequest("/me");
@@ -79,6 +91,8 @@ async function provisionCreaoAgents():Promise<any>{
   const agentId=String(found.agent_id||found.id||"");
   if(!agentId)continue;
   await setSetting("creao_agent_id_"+agent.id,agentId);
+  const createStatus=await pollAgentCreation(agentId,agent.id);
+  if(["queued","running","failed","cancelled"].includes(createStatus)){pending++;continue;}
   const detail=await creaoRequest("/agents/"+encodeURIComponent(agentId));
   const autonomy=String(detail.write_autonomy||"unknown");
   await setSetting("creao_agent_write_autonomy_"+agent.id,autonomy);
@@ -104,6 +118,8 @@ async function provisionCreaoAgents():Promise<any>{
   const agentId=String(found.agent_id||found.id||"");
   if(!agentId){pending++;continue;}
   await setSetting("creao_agent_id_"+agent.id,agentId);
+  const createStatus=await pollAgentCreation(agentId,agent.id);
+  if(["queued","running","failed","cancelled"].includes(createStatus)){pending++;continue;}
   const detail=await creaoRequest("/agents/"+encodeURIComponent(agentId));
   const autonomy=String(detail.write_autonomy||"unknown");
   await setSetting("creao_agent_write_autonomy_"+agent.id,autonomy);
