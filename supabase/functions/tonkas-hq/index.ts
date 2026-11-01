@@ -185,8 +185,8 @@ async function model(system:string,prompt:string,provider:string,modelOverride?:
 async function modelWithFallback(system:string,prompt:string,webSearch:boolean=false,githubAccess:boolean=false):Promise<{content:string;provider:string;model:string}>{
  const p=providers(),failures:string[]=[];
  if(p.gemini){
-  try{return {content:await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess,25000),provider:"gemini",model:"gemini-3.5-flash-lite"};}
-  catch(error){failures.push("Gemini 3.5 Flash-Lite: "+String(error).slice(0,350));await log("provider.failover","system","Gemini failed; switching immediately to Ollama GPT-OSS 120B.",{from:"gemini-3.5-flash-lite",reason:String(error).slice(0,500),next:"gpt-oss:120b"});}
+  try{const content=await model(system,prompt,"gemini","gemini-3.5-flash-lite",webSearch,githubAccess,25000);parse(content);return {content,provider:"gemini",model:"gemini-3.5-flash-lite"};}
+  catch(error){failures.push("Gemini 3.5 Flash-Lite: "+String(error).slice(0,350));try{await log("provider.failover","system","Gemini failed; switching immediately to Ollama GPT-OSS 120B.",{from:"gemini-3.5-flash-lite",reason:String(error).slice(0,500),next:"gpt-oss:120b"});}catch(_){}}
  }
  if(p.ollama){
   const fallbacks=[
@@ -196,12 +196,12 @@ async function modelWithFallback(system:string,prompt:string,webSearch:boolean=f
   for(let i=0;i<fallbacks.length;i++){
    const candidate=fallbacks[i],fallbackSystem=system+"\\n\\nFALLBACK PROVIDER NOTICE: You are running on Ollama Cloud model "+candidate.id+". Gemini failed or was unavailable. Google Search, URL Context, and GitHub repository tools are NOT available in this run. Do not claim to have browsed, inspected files, verified current market facts, or cite invented sources. Produce useful work from supplied context, label assumptions, and flag anything requiring live research or repository inspection for human review.";
    try{
-    const content=await model(fallbackSystem,prompt,"ollama",candidate.id,false,false,70000);
-    if(failures.length)await log("provider.failover.success","system",candidate.label+" successfully took over after provider failure.",{model:candidate.id,previous_failures:failures});
+    const content=await model(fallbackSystem,prompt,"ollama",candidate.id,false,false,70000);parse(content);
+    if(failures.length){try{await log("provider.failover.success","system",candidate.label+" successfully took over after provider failure.",{model:candidate.id,previous_failures:failures});}catch(_){}}
     return {content,provider:"ollama",model:candidate.id};
    }catch(error){
     failures.push(candidate.label+": "+String(error).slice(0,350));
-    await log("provider.failover","system",candidate.label+" failed; "+(i===0?"trying Gemma 4 next.":"all configured fallback models have failed."),{model:candidate.id,reason:String(error).slice(0,500),next:fallbacks[i+1]?.id||null});
+    try{await log("provider.failover","system",candidate.label+" failed; "+(i===0?"trying Gemma 4 next.":"all configured fallback models have failed."),{model:candidate.id,reason:String(error).slice(0,500),next:fallbacks[i+1]?.id||null});}catch(_){}
    }
   }
  }
