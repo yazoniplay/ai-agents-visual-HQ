@@ -231,7 +231,7 @@ async function mattCycle(force:boolean=false):Promise<any>{
  if(useWeb)await setSetting("matt_last_web_research_at",now());
  const sources=Array.isArray(data.web_sources)?data.web_sources:[];
  const summary=String(data.summary||"Matt completed a coordination cycle.").slice(0,1200);
- await log("matt.plan","matt",summary,{provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_sources:sources,web_tools_available:generated.provider==="gemini"});
+ await log("matt.plan","matt",summary,{provider:generated.provider,model:generated.model,web_sources:sources,web_tools_available:generated.provider==="gemini"});
  await message("command","matt",summary);
  await message("command","matt","CEO UPDATE · "+summary,"owner");
  for(const t of (data.tasks||[]).slice(0,3)){
@@ -281,8 +281,8 @@ async function runOneTask():Promise<any>{
    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status,result:deliverable.slice(0,14000),updated_at:now()},prefer:"return=minimal"});
    await setAgentState(agent.id,status==="completed"?"idle":status==="needs_review"?"reviewing":"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
    for(const memory of cleanUpdates)await db("tonkas_agent_memory?on_conflict=agent_id,source_task_id,memory_type",{method:"POST",body:{agent_id:agent.id,memory_type:memory.memory_type,content:memory.content,source_task_id:task.id,confidence:0.85,created_at:now()},prefer:"resolution=merge-duplicates,return=minimal"});
-   await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",status,procedure_version:profile?.procedure_version||1,started_at:startedAt,finished_at:now(),summary:deliverable.slice(0,2400),sources,memory_updates:cleanUpdates},prefer:"return=minimal"});
-   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,provider:generated.provider,model:generated.provider==="gemini"?"gemini-3.5-flash-lite":"gemma4:31b",web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1});
+   await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,provider:generated.provider,model:generated.model,status,procedure_version:profile?.procedure_version||1,started_at:startedAt,finished_at:now(),summary:deliverable.slice(0,2400),sources,memory_updates:cleanUpdates},prefer:"return=minimal"});
+   await log("task."+status,agent.name,task.title+": "+status,{task_id:task.id,provider:generated.provider,model:generated.model,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1});
    await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");if(!placeholderResponse&&result.message_to_matt)await message("command",agent.id,String(result.message_to_matt).slice(0,2000),"matt");
    for(const outgoing of (placeholderResponse?[]:(result.messages||[]).slice(0,5))){const recipient=String(outgoing.to||"matt");if(recipient!=="all"&&!AGENT_IDS.has(recipient))continue;await message(String(outgoing.room||agent.department),agent.id,String(outgoing.content||"").slice(0,3000),recipient);}
    return {task_id:task.id,agent:agent.id,status,provider:generated.provider,web_research:webSearch&&generated.provider==="gemini",github_access:githubAccess&&generated.provider==="gemini",sources:sources.length,memory_updates:cleanUpdates.length,procedure_version:profile?.procedure_version||1};
