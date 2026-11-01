@@ -47,6 +47,129 @@ async function message(room:string,sender:string,content:string,to:string|null=n
 }
 async function addTask(title:string,description:string,agent:string|null,creator:string,priority:string="normal",department:string|null=null):Promise<string>{const rows=await db("tonkas_tasks",{method:"POST",body:{title:String(title).slice(0,180),description:String(description).slice(0,10000),assigned_to:agent,created_by:creator,status:"queued",priority:["high","normal","low"].includes(priority)?priority:"normal",department,created_at:now(),updated_at:now()},prefer:"return=representation"});const task=rows&&rows[0];if(!task)throw new Error("Task insert returned no row.");if(agent)await db("tonkas_agents?id=eq."+encodeURIComponent(agent),{method:"PATCH",body:{status:"queued",current_task:task.id,updated_at:now()},prefer:"return=minimal"});await log("task.created",creator,"Created task: "+title,{task_id:task.id,agent});return task.id;}
 async function addApproval(title:string,context:string,recommended:string,options:any[],actor:string):Promise<void>{if(!Array.isArray(options)||options.length!==5)throw new Error("Exactly five options are required.");await db("tonkas_approvals",{method:"POST",body:{title:String(title).slice(0,180),context:String(context).slice(0,10000),recommended_option:String(recommended||""),options,status:"pending",created_by:actor,created_at:now()},prefer:"return=minimal"});await log("approval.created",actor,"Decision needed: "+title,{});}
+
+async function creaoRequest(path:string,method="GET",body?:unknown):Promise<any>{
+ const key=Deno.env.get("CREAO_API_KEY")||"";
+ if(!key)throw new Error("CREAO_API_KEY is missing from Supabase Function Secrets.");
+ const response=await fetch("https://developer.creao.ai/v2"+path,{method,headers:{"Authorization":"Bearer "+key,"Accept":"application/json","Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
+ const raw=await response.text();let data:any={};try{data=raw?JSON.parse(raw):{};}catch{data={message:raw.slice(0,300)};}
+ if(!response.ok)throw new Error("CREAO API "+response.status+": "+String(data.message||data.error||"Request failed").slice(0,350));
+ return data;
+}
+async function provisionCreaoAgents():Promise<any>{
+ const me=await creaoRequest("/me");
+ let listing=await creaoRequest("/agents?limit=100");
+ let listed=Array.isArray(listing.agents)?listing.agents:[];
+ let created=0,pending=0,ready=0,unsafe=0;
+ for(const agent of AGENTS){
+  const desiredName="Tonkas Town | "+agent.name;
+  let found=listed.find((item:any)=>String(item.name||"")===desiredName);
+  if(!found){
+   const createKey="creao_create_run_"+agent.id;
+   const existingRun=await setting(createKey,"");
+   if(!existingRun){
+    const input="Create a persistent hosted AI agent named '"+desiredName+"' for Tonkas Town. Role: "+agent.role+". Charter: "+agent.objective+" This agent must follow the owner-provided task instructions, return a concrete structured deliverable, preserve continuity through its hosted conversation history, and never fabricate work or evidence. IMPORTANT SAFETY CONFIGURATION: set write_autonomy to blocked; do not enable any write or delete actions in connected services; do not contact people, publish, spend money, modify accounts, deploy, or change repositories. Read-only research is permitted where supported. The owner must approve every external action. Configure the agent to return a concise JSON object with result, status, sources, memory_updates, message_to_matt, and messages.";
+    const result=await creaoRequest("/agents","POST",{input});
+    if(result.run_id)await setSetting(createKey,String(result.run_id));
+    if(result.agent_id){await setSetting("creao_agent_id_"+agent.id,String(result.agent_id));}
+    created++;
+   }else pending++;
+   continue;
+  }
+  const agentId=String(found.agent_id||found.id||"");
+  if(!agentId)continue;
+  await setSetting("creao_agent_id_"+agent.id,agentId);
+  const detail=await creaoRequest("/agents/"+encodeURIComponent(agentId));
+  const autonomy=String(detail.write_autonomy||"unknown");
+  await setSetting("creao_agent_write_autonomy_"+agent.id,autonomy);
+  if(autonomy==="blocked"||autonomy==="approval_required"){ready++;continue;}
+  if(autonomy==="full_auto"){
+   const editKey="creao_safety_edit_"+agent.id;
+   const editRun=await setting(editKey,"");
+   if(!editRun){
+    const edit=await creaoRequest("/agents/"+encodeURIComponent(agentId)+"/edits","POST",{instructions:"Set write_autonomy to blocked. Disable all write and delete actions in connected services. This agent must only perform read-only research and internal analysis. Never send messages, publish, spend, modify accounts, change repositories, deploy, or perform external actions. The owner must approve all external actions.",release_note:"Enforce Tonkas Town owner-approval safety policy."});
+    if(edit.run_id)await setSetting(editKey,String(edit.run_id));
+   }
+   unsafe++;
+  }else unsafe++;
+ }
+ listing=await creaoRequest("/agents?limit=100");
+ listed=Array.isArray(listing.agents)?listing.agents:[];
+ // Refresh newly materialized agents and verify their write-autonomy mode.
+ ready=0;unsafe=0;pending=0;
+ for(const agent of AGENTS){
+  const desiredName="Tonkas Town | "+agent.name;
+  const found=listed.find((item:any)=>String(item.name||"")===desiredName);
+  if(!found){pending++;continue;}
+  const agentId=String(found.agent_id||found.id||"");
+  if(!agentId){pending++;continue;}
+  await setSetting("creao_agent_id_"+agent.id,agentId);
+  const detail=await creaoRequest("/agents/"+encodeURIComponent(agentId));
+  const autonomy=String(detail.write_autonomy||"unknown");
+  await setSetting("creao_agent_write_autonomy_"+agent.id,autonomy);
+  if(autonomy==="blocked"||autonomy==="approval_required")ready++;
+  else unsafe++;
+ }
+ const status=ready===AGENTS.length?"connected":unsafe>0?"safety_review":"provisioning";
+ await setSetting("creao_connection_status",status);
+ await setSetting("creao_ready_count",String(ready));
+ await setSetting("creao_project_id",String(me.projectId||""));
+ await log("creao.provision."+status,"system","CREAO hosted-agent provisioning check completed.",{ready,total:AGENTS.length,created,pending,unsafe});
+ return {status,project_id:me.projectId||null,ready,total:AGENTS.length,created,pending,unsafe};
+}
+function creaoOutputText(value:any):string{
+ if(typeof value==="string")return value;
+ if(value&&typeof value==="object"){
+  for(const key of ["output","text","content","response","answer","final"])if(typeof value[key]==="string"&&value[key].trim())return value[key];
+  if(Array.isArray(value.messages)){const messages=value.messages.filter((m:any)=>m&&typeof m.content==="string");if(messages.length)return messages[messages.length-1].content;}
+ }
+ return JSON.stringify(value??{});
+}
+async function pollCreaoTasks():Promise<any>{
+ const rows=await db("tonkas_tasks?select=*&status=eq.running&creao_run_id=not.is.null&order=creao_dispatched_at.asc&limit=20");
+ let checked=0,completed=0,failed=0;
+ for(const task of rows||[]){
+  try{
+   const run=await creaoRequest("/runs/"+encodeURIComponent(String(task.creao_run_id)));
+   checked++;
+   if(run.status==="pending"||run.status==="running"){
+    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{creao_status:run.status,creao_last_polled_at:now()},prefer:"return=minimal"});
+    continue;
+   }
+   const agent=AGENTS.find(a=>a.id===task.assigned_to);
+   if(run.status!=="completed"){
+    const reason="CREAO run ended with status "+String(run.status||"unknown")+": "+String(run.error?.message||run.error?.code||"No error details.");
+    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"blocked",result:reason,creao_status:run.status||"failed",creao_last_polled_at:now(),updated_at:now()},prefer:"return=minimal"});
+    if(agent)await setAgentState(agent.id,"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
+    await db("tonkas_agent_runs",{method:"POST",body:{agent_id:task.assigned_to,task_id:task.id,provider:"creao",model:run.model||"CREAO hosted agent",status:"blocked",started_at:task.creao_dispatched_at||task.created_at,finished_at:now(),summary:reason},prefer:"return=minimal"});
+    await log("task.blocked",agent?.name||String(task.assigned_to),reason,{task_id:task.id,provider:"creao",run_id:task.creao_run_id});
+    failed++;continue;
+   }
+   const raw=creaoOutputText(run.result);
+   let result:any;try{result=parse(raw);}catch{result={result:raw,status:"needs_review",memory_updates:[],messages:[]};}
+   let status=["completed","blocked","needs_review"].includes(result.status)?result.status:"needs_review";
+   let deliverable=String(result.result||raw||"").trim().slice(0,12500);
+   if(deliverable.length<180)status="needs_review";
+   if(status==="needs_review"&&deliverable.length<180)deliverable="QUALITY GATE: CREAO returned an empty or incomplete result. This task requires review and has not been accepted as completed.\n\n"+deliverable;
+   const sources=Array.isArray(result.sources)?result.sources:Array.isArray(result.web_sources)?result.web_sources:[];
+   const updates=Array.isArray(result.memory_updates)?result.memory_updates.slice(0,3):[];
+   const cleanUpdates=updates.map((m:any)=>({memory_type:["lesson","decision","fact"].includes(String(m.type))?String(m.type):"lesson",content:String(m.content||"").trim().slice(0,1800)})).filter((m:any)=>m.content.length>=20);
+   if(sources.length)deliverable+="\n\n## Sources\n"+sources.slice(0,10).map((source:any)=>"- "+(typeof source==="string"?source:String(source.url||source.title||""))).join("\n");
+   await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status,result:deliverable.slice(0,14000),creao_status:"completed",creao_last_polled_at:now(),updated_at:now()},prefer:"return=minimal"});
+   if(agent)await setAgentState(agent.id,status==="completed"?"idle":status==="needs_review"?"reviewing":"blocked",HOME_POINTS[agent.department]||HOME_POINTS.factory,null);
+   for(const memory of cleanUpdates)await db("tonkas_agent_memory?on_conflict=agent_id,source_task_id,memory_type",{method:"POST",body:{agent_id:task.assigned_to,memory_type:memory.memory_type,content:memory.content,source_task_id:task.id,confidence:0.8,created_at:now()},prefer:"resolution=merge-duplicates,return=minimal"});
+   await db("tonkas_agent_runs",{method:"POST",body:{agent_id:task.assigned_to,task_id:task.id,provider:"creao",model:run.model||"CREAO hosted agent",status,started_at:task.creao_dispatched_at||task.created_at,finished_at:now(),summary:deliverable.slice(0,2400),sources,memory_updates:cleanUpdates},prefer:"return=minimal"});
+   if(agent)await message(agent.department,agent.id,deliverable.slice(0,9000),"matt");
+   if(result.message_to_matt)await message("command",String(task.assigned_to),String(result.message_to_matt).slice(0,2000),"matt");
+   completed++;
+  }catch(error){
+   await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{creao_last_polled_at:now()},prefer:"return=minimal"}).catch(()=>{});
+   await log("creao.run.poll_error",String(task.assigned_to),"Could not poll CREAO task run.",{task_id:task.id,error:String(error).slice(0,300)});
+  }
+ }
+ return {checked,completed,failed};
+}
+
 async function snapshot():Promise<any>{
  const r=await Promise.all([
   db("tonkas_agents?select=*&order=name.asc"),db("tonkas_tasks?select=*&order=created_at.desc&limit=100"),db("tonkas_approvals?select=*&status=eq.pending&order=created_at.desc"),db("tonkas_messages?select=*&order=created_at.desc&limit=100"),db("tonkas_activity?select=*&order=created_at.desc&limit=100"),db("tonkas_character_brains?select=*&expires_at=gt."+encodeURIComponent(now())),db("tonkas_meetings?select=*&order=started_at.desc&limit=500"),db("tonkas_opportunities?select=*&order=discovered_at.desc&limit=30"),db("tonkas_agent_profiles?select=*&order=agent_id.asc"),db("tonkas_agent_memory?select=*&order=created_at.desc&limit=60"),db("tonkas_agent_runs?select=*&order=started_at.desc&limit=50")
@@ -55,7 +178,7 @@ async function snapshot():Promise<any>{
  const quotaBlocked=(await setting("gemini_quota_blocked","false"))==="true",quotaReason=quotaBlocked?await setting("gemini_quota_blocked_reason","Gemini API quota exceeded."):null,autonomy=(await setting("autonomy_enabled","false"))==="true";
  const lastMeeting=meetings[0]||null,scheduledBoundary=(Math.floor(Date.now()/300000)+1)*300000,storedNext=lastMeeting?.next_meeting_at?Date.parse(lastMeeting.next_meeting_at):NaN;
  const next_meeting_at=autonomy?(Number.isFinite(storedNext)&&storedNext>Date.now()?lastMeeting.next_meeting_at:new Date(scheduledBoundary).toISOString()):null;
- return {ok:true,runtime:"live",autonomy_enabled:autonomy,gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,meetings,opportunities,agent_profiles,agent_memories,agent_runs,next_meeting_at,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
+ return {ok:true,runtime:"live",autonomy_enabled:autonomy,gemini_quota_blocked:quotaBlocked,gemini_quota_blocked_reason:quotaReason,creao_connection_status:await setting("creao_connection_status","not_connected"),creao_ready_count:Number(await setting("creao_ready_count","0")),provider_status:providers(),company_goal:await setting("company_goal",""),agents,tasks,approvals,messages,activity,character_brains,meetings,opportunities,agent_profiles,agent_memories,agent_runs,next_meeting_at,server_time:now(),counts:{agents:agents.length,active_agents:agents.filter((a:any)=>["working","planning","reviewing","meeting","researching"].includes(a.status)).length,queued_tasks:tasks.filter((t:any)=>t.status==="queued").length,running_tasks:tasks.filter((t:any)=>t.status==="running").length,pending_approvals:approvals.length}};
 }
 function parse(raw:string):any{
  let s=String(raw||"").trim();
@@ -269,6 +392,17 @@ async function runOneTask():Promise<any>{
    const system="You are "+agent.name+", "+agent.role+". Your permanent charter: "+agent.objective+". Your saved specialty profile and versioned operating procedure are authoritative: "+JSON.stringify(profile||{})+". Follow the procedure step by step. Your persistent institutional memory from prior work is: "+JSON.stringify(persistentMemory)+". You are a specialist, not a generic chatbot. Read your assigned task, company goal and recent team messages. Reply to relevant messages, ask another agent for missing input when useful, and send concise messages to Matt or another specialist when a handoff is needed. "+(webSearch?"You have live Google Search and URL Context tools in this run. Use Google Search for current facts, open useful pages with URL Context, cite source links in the deliverable, and separate verified evidence from assumptions.":"Use supplied company context; do not invent external research or claim to have browsed.")+" "+(githubAccess?"You have read-only GitHub tools for yazoniplay/HookEngine. Inspect actual repository files and recent commits when relevant, but do not claim to modify files or create commits.":"Do not claim to have inspected a repository.")+" Produce a concrete deliverable with headings, measurable recommendations and next steps. At the end, provide up to 3 durable memory_updates: reusable facts, decisions, constraints, or lessons that improve future work. Do not store temporary status or repeat the task description. Never claim to edit a repository, publish, purchase, contact customers, or change accounts. External actions require owner approval. Return JSON only: {\"result\":\"deliverable\",\"status\":\"completed|blocked|needs_review\",\"message_to_matt\":\"handoff\",\"memory_updates\":[{\"type\":\"lesson|decision|fact\",\"content\":\"durable memory\"}],\"messages\":[{\"to\":\"agent-id or matt or all\",\"room\":\"department-id\",\"content\":\"message\"}]}";
    const runtimeState=agent.id==="noah"?await Promise.all([db("tonkas_agents?select=id,status,department"),db("tonkas_tasks?select=id,status,priority,assigned_to,created_at,updated_at"),db("tonkas_approvals?select=id,status")]):null;
    const prompt=JSON.stringify({task:{title:task.title,instructions:task.description},company_goal:await setting("company_goal",""),agent_profile:profile,persistent_memory:persistentMemory,recent_messages:inbox,runtime_state:runtimeState});
+   const creaoAgentId=await setting("creao_agent_id_"+agent.id,"");
+   if(creaoAgentId){
+    const detail=await creaoRequest("/agents/"+encodeURIComponent(creaoAgentId));
+    if(!["blocked","approval_required"].includes(String(detail.write_autonomy||"")))throw new Error("CREAO agent write autonomy is not safely restricted; task dispatch blocked.");
+    const created=await creaoRequest("/runs","POST",{agent_id:creaoAgentId,input:{instructions:system,task:{title:task.title,description:task.description},company_goal:await setting("company_goal",""),agent_profile:profile,persistent_memory: persistentMemory,recent_messages:inbox,runtime_state:runtimeState}});
+    if(!created.run_id)throw new Error("CREAO accepted no run_id for this task.");
+    await db("tonkas_tasks?id=eq."+encodeURIComponent(task.id),{method:"PATCH",body:{status:"running",creao_run_id:String(created.run_id),creao_agent_id:creaoAgentId,creao_dispatched_at:now(),creao_status:String(created.status||"pending"),updated_at:now()},prefer:"return=minimal"});
+    await db("tonkas_agent_runs",{method:"POST",body:{agent_id:agent.id,task_id:task.id,provider:"creao",model:created.model||"CREAO hosted agent",status:"running",procedure_version:profile?.procedure_version||1,started_at:startedAt,summary:"CREAO hosted run dispatched: "+String(created.run_id)},prefer:"return=minimal"});
+    await log("task.dispatched",agent.name,"Dispatched task to CREAO hosted agent.",{task_id:task.id,creao_run_id:created.run_id,creao_agent_id:creaoAgentId,procedure_version:profile?.procedure_version||1});
+    return {task_id:task.id,agent:agent.id,status:"running",provider:"creao",run_id:created.run_id};
+   }
    const generated=await modelWithFallback(system,prompt,webSearch,githubAccess),result=parse(generated.content);
    let status=["completed","blocked","needs_review"].includes(result.status)?result.status:"completed",rawDeliverable=String(result.result||"").trim(),deliverable=rawDeliverable.slice(0,12500);
    const normalizedDeliverable=rawDeliverable.toLowerCase().replace(/[.!]/g,"").trim();
@@ -434,10 +568,11 @@ async function workerCycle():Promise<any>{
  let executive:any;try{executive=await runCycle(false);}catch(e){executive={error:String(e).slice(0,500)};await log("matt.cycle_blocked","matt","Matt's executive cycle failed: "+String(e).slice(0,500),{});}
  let brain:any;try{brain=await runCharacterBrain();}catch(e){brain={error:String(e).slice(0,500)};await log("character.brain.error","Tonkas AI","Character brain update failed.",{error:String(e).slice(0,500)});}
  let scout:any;try{scout=await runIvyOpportunityScout();}catch(e){scout={error:String(e).slice(0,500)};await setAgentState("ivy","idle",HOME_POINTS.research,null).catch(()=>{});await log("ivy.scout.error","Ivy","Customer opportunity scan failed.",{error:String(e).slice(0,500)});}
+ const creaoPoll=await pollCreaoTasks();
  const work=await runOneTask();
- return {executive,brain,scout,work};
+ return {executive,brain,scout,creaoPoll,work};
 }
-async function command(c:any):Promise<any>{const kind=c.type;if(kind==="characters.position"){const positions=Array.isArray(c.positions)?c.positions.slice(0,10):[];for(const p of positions){const id=String(p.id||"");if(!AGENT_IDS.has(id))continue;const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))continue;await db("tonkas_agents?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),updated_at:now()},prefer:"return=minimal"});}return {ok:true,synced:positions.length};}if(kind==="characters.brain")return {ok:true,result:await runCharacterBrain()};if(kind==="autonomy.start"){
+async function command(c:any):Promise<any>{const kind=c.type;if(kind==="creao.connect")return {ok:true,result:await provisionCreaoAgents()};if(kind==="characters.position"){const positions=Array.isArray(c.positions)?c.positions.slice(0,10):[];for(const p of positions){const id=String(p.id||"");if(!AGENT_IDS.has(id))continue;const x=Number(p.x),y=Number(p.y);if(!Number.isFinite(x)||!Number.isFinite(y))continue;await db("tonkas_agents?id=eq."+encodeURIComponent(id),{method:"PATCH",body:{x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),updated_at:now()},prefer:"return=minimal"});}return {ok:true,synced:positions.length};}if(kind==="characters.brain")return {ok:true,result:await runCharacterBrain()};if(kind==="autonomy.start"){
  const p=providers();if(!p.gemini&&!p.ollama)throw new Error("GEMINI_API_KEY or OLLAMA_API_KEY is missing from Supabase Function Secrets.");
  const blocked=await db("tonkas_tasks?select=id,assigned_to,result&status=eq.blocked");
  const retry=(blocked||[]).filter((task:any)=>/Gemini 429|RESOURCE_EXHAUSTED|exceeded your current quota/i.test(String(task.result||"")));
